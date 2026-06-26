@@ -1,36 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 泥沼ボードゲームシリーズ (doronuma_boradgame)
 
-## Getting Started
+お互いに罵り合いながら邪魔をし合う、妨害が中心のオンラインボードゲームシリーズ。
 
-First, run the development server:
+---
+
+## 第一弾：泥沼の妨害 (doronuma_sabotage)
+
+> 全員がマイナス点で終わることがほとんど。最もマイナスが少ない人が勝利する、妨害特化のボードゲーム。
+
+### ゲームの特徴
+
+- **プレイ人数:** 3〜5人
+- **勝利条件:** ゲーム終了時に最もマイナスが少ない人の勝利
+- **コンセプト:** 他のプレイヤーに勝利点カード（ほぼマイナス）を引かせて妨害し合う
+- **割り込みシステム:** 相手の行動に対してカウンターを仕掛ける、後出し有利のスタック処理
+- **突然死:** 山札の後半に混ざる1枚のカードが引かれると、ゲーム終了のカウントダウンが始まる
+
+### 行動カードの種類
+
+| カード名 | 枚数 | 効果 |
+|:---|:---:|:---|
+| 単なる嫌がらせ | 15 | 指定した1人に勝利点カードを1枚引かせる |
+| 道連れ | 8 | 自分以外の全員に勝利点カードを1枚ずつ引かせる |
+| 集中砲火 | 4 | 指定した1人に勝利点カードを2枚引かせる |
+| 完全無効 | 7 | 相手の行動カードの効果を完全に打ち消す |
+| なすりつけ | 6 | 自分への攻撃を別の人にそらす |
+| 倍返し | 4 | 攻撃を無効にし、攻撃者に2枚引かせる |
+| 強奪 | 3 | 相手のプラスの勝利点カードを1枚奪う |
+| 出る杭を打つ | 2 | プラス点のプレイヤー全員のプラスカードを捨てさせる |
+| 突然死 | 1 | 引いた本人が勝利点カード3枚のペナルティ＋ゲーム終了トリガー |
+
+---
+
+## 技術スタック
+
+| レイヤー | 技術 |
+|:---|:---|
+| フロントエンド | Next.js 16 + TypeScript + TailwindCSS v4 |
+| ホスティング | Firebase Hosting |
+| リアルタイム通信 | Cloud Firestore (onSnapshot) |
+| ゲームサーバー | Cloud Run (Node.js / Express) |
+| 認証 | Firebase Anonymous Authentication |
+| 時間管理 | Cloud Scheduler |
+| CI/CD | Cloud Build + GitHub |
+
+---
+
+## プロジェクト構成
+
+```
+doronuma_boradgame/
+├── app/                    # Next.js フロントエンド
+├── packages/
+│   ├── shared/             # 共有型定義・定数・バリデーション
+│   └── backend/            # Cloud Run ゲームサーバー
+├── docs/                   # ドキュメント
+└── ...
+```
+
+---
+
+## ドキュメント
+
+### 開発者向け
+
+| ドキュメント | 内容 |
+|:---|:---|
+| [docs/environment.md](docs/environment.md) | 開発環境構築ガイド（Node.js, Firebase CLI, Docker 等のセットアップ手順） |
+| [docs/infrastructure.md](docs/infrastructure.md) | GCP / Firebase インフラ構築ガイド（プロジェクト作成〜デプロイまでの全手順） |
+
+### ゲーム仕様
+
+| ドキュメント | 内容 |
+|:---|:---|
+| [docs/sabotage/doronuma_sabotage_game_spec.md](docs/sabotage/doronuma_sabotage_game_spec.md) | ゲームルール・カード一覧・勝利条件の詳細仕様 |
+| [docs/sabotage/doronuma_sabotage_game_system.md](docs/sabotage/doronuma_sabotage_game_system.md) | システム構成・ロビー機能・自動進行の技術仕様 |
+| [docs/sabotage/doronuma_sabotage_playing.md](docs/sabotage/doronuma_sabotage_playing.md) | ゲーム画面の UI 設計・画面遷移仕様 |
+| [docs/sabotage/doronuma_sabotage_lobby.md](docs/sabotage/doronuma_sabotage_lobby.md) | ロビー画面の UI 設計 |
+
+---
+
+## クイックスタート
+
+### 1. リポジトリのクローン
+
+```bash
+git clone https://github.com/Seaoftrees08/doronuma_boradgame.git
+cd doronuma_boradgame
+```
+
+### 2. 依存パッケージのインストール
+
+```bash
+npm install
+```
+
+### 3. 開発サーバーの起動
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+http://localhost:3000 でアクセスできます。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> 詳しいセットアップ手順は [docs/environment.md](docs/environment.md) を参照してください。
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 📄 ライセンス
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[MIT License](LICENSE)

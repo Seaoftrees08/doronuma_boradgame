@@ -50,3 +50,9 @@ packages/**/*.d.ts
 # Firebase
 .firebase/
 firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+auth-debug.log*
+hub-debug.log*
+*-debug.log*
+*.log

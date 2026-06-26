@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 認証済みのプレイヤー (匿名認証含む) のみ読み書きのベースラインとするが、
+    // 実態はサーバー側で大半の処理を行うため、クライアントからの書き込みは最小限にする
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    match /rooms/{roomId} {
+      // 誰でも部屋情報の読み取りは可能（参加前でも設定や参加人数を見るため）
+      allow read: if true;
+      // 部屋の作成は認証済みなら可能
+      allow create: if isAuthenticated();
+      // 部屋の更新は基本サーバーから行うべきだが、ホストの設定変更などを考慮し一旦許可
+      // 厳密にするなら設定変更用APIを用意するべきだが、要件次第。
+      allow update: if isAuthenticated();
+      
+      match /players/{playerId} {
+        // 誰でも部屋内のプレイヤー一覧は見える
+        allow read: if true;
+        // 自分のドキュメントのみ更新可能 (Ready状態など)
+        allow write: if isAuthenticated() && request.auth.uid == playerId;
+      }
+      
+      match /gameState/{document=**} {
+        // 全員がゲーム状態をリアルタイム監視する必要がある
+        allow read: if true;
+        // ゲーム状態の更新は Cloud Run 経由でのみ行い、クライアントからは直接書き込ませない
+        allow write: if false;
+      }
+      
+      match /hands/{playerId} {
+        // 自分の手札のみ読み取り可能。他人の手札は読めない
+        allow read: if isAuthenticated() && request.auth.uid == playerId;
+        // 書き込みは Cloud Run 経由のみ
+        allow write: if false;
+      }
+
+      match /actionLog/{logId} {
+        // 誰でも行動ログは読める
+        allow read: if true;
+        // 書き込みは Cloud Run 経由のみ
+        allow write: if false;
+      }
+    }
+  }
+}

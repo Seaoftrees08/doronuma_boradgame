@@ -1,0 +1,10 @@
+export const GAME_CONSTANTS = {
+  MAX_HAND_SIZE: 5,
+  MIN_PLAYERS: 3,
+  MAX_PLAYERS: 5,
+  DEFAULT_TURN_TIME: 15, // seconds
+  DEFAULT_INTERRUPT_TIME: 10, // seconds
+  INITIAL_HAND_SIZES: [3, 4, 5, 5, 5],
+  SUDDEN_DEATH_PENALTY_DRAWS: 3,
+  AFK_THRESHOLD: 2, // consecutive timeouts
+};

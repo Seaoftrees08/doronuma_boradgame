@@ -1,436 +1,101 @@
-# 開発環境構築ガイド (environment.md)
+# 開発環境構築ガイド
 
-このドキュメントでは、`doronuma_boradgame` リポジトリをクローンした人が、ゼロから開発環境を構築する手順を記載します。
+このドキュメントは、「泥沼の妨害 (Doronuma Sabotage)」の開発環境をゼロから構築するための手順書です。
+外部サイトを検索しなくても、この手順に沿って進めるだけで開発環境が完成します。
 
----
+## 前提条件
+以下のソフトウェアがPCにインストールされている必要があります。
+*   **OS**: Windows 10/11, macOS, Linux いずれでも可
+*   **Node.js**: v20.0.0 以上 (v20のLTSバージョンを推奨)
+*   **npm**: v10.0.0 以上 (Node.jsに同梱)
+*   **Git**: 最新版
 
-## 目次
+## 1. リポジトリのクローンと依存関係のインストール
 
-1. [前提条件](#1-前提条件)
-2. [必須ソフトウェアのインストール](#2-必須ソフトウェアのインストール)
-3. [リポジトリのクローンと初期セットアップ](#3-リポジトリのクローンと初期セットアップ)
-4. [環境変数の設定](#4-環境変数の設定)
-5. [Firebase Emulator のセットアップ](#5-firebase-emulator-のセットアップ)
-6. [開発サーバーの起動](#6-開発サーバーの起動)
-7. [エディタの設定（推奨）](#7-エディタの設定推奨)
-8. [トラブルシューティング](#8-トラブルシューティング)
+1. ターミナル（またはコマンドプロンプト、PowerShell）を開きます。
+2. 任意のディレクトリでリポジトリをクローンします。
+   ```bash
+   git clone <リポジトリのURL> doronuma_boardgame
+   cd doronuma_boardgame
+   ```
+3. 依存関係をインストールします。このプロジェクトは npm workspaces を利用したモノレポ構成です。ルートディレクトリで一度コマンドを実行するだけで、フロントエンド・バックエンド・共有パッケージすべての依存関係がインストールされます。
+   ```bash
+   npm install
+   ```
 
----
+## 2. Firebase プロジェクトの設定とCLIツールの導入
 
-## 1. 前提条件
+ローカルで開発する場合でも、Firebaseの設定が必要です。本番環境（または開発用のテスト環境）のFirebaseプロジェクトと連携するか、ローカルエミュレータを利用します。
 
-| 項目 | 最低バージョン | 確認コマンド |
-|:---|:---|:---|
-| OS | Windows 10 / macOS 12 / Ubuntu 20.04 以降 | - |
-| Git | 2.30 以降 | `git --version` |
-| Node.js | 20.x LTS 以降（推奨: 22.x LTS） | `node --version` |
-| npm | 10.x 以降（Node.js に同梱） | `npm --version` |
-| Java | JDK 11 以降（Firebase Emulator に必要） | `java -version` |
-| Docker | 24.x 以降（バックエンド開発時に必要） | `docker --version` |
-
----
-
-## 2. 必須ソフトウェアのインストール
-
-### 2.1 Node.js
-
-**推奨: nvm（Node Version Manager）を使用**
-
-#### Windows の場合
-
-1. [nvm-windows](https://github.com/coreybutler/nvm-windows/releases) から最新のインストーラー（`nvm-setup.exe`）をダウンロード
-2. インストーラーを実行
-3. PowerShell を**管理者権限**で開き、以下を実行：
-
-```powershell
-nvm install 22
-nvm use 22
-node --version   # v22.x.x と表示されること
-npm --version    # 10.x.x と表示されること
-```
-
-#### macOS の場合
-
-```bash
-# Homebrew が未インストールの場合は先にインストール
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# nvm のインストール
-brew install nvm
-
-# シェル設定ファイル (~/.zshrc) に追加
-echo 'export NVM_DIR="$HOME/.nvm"' >> ~/.zshrc
-echo '[ -s "$(brew --prefix nvm)/nvm.sh" ] && \. "$(brew --prefix nvm)/nvm.sh"' >> ~/.zshrc
-source ~/.zshrc
-
-# Node.js のインストール
-nvm install 22
-nvm use 22
-```
-
-#### Linux (Ubuntu/Debian) の場合
-
-```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-source ~/.bashrc
-nvm install 22
-nvm use 22
-```
-
-### 2.2 Java (JDK)
-
-Firebase Emulator Suite の実行に必要です。
-
-#### Windows
-
-1. [Adoptium (Temurin)](https://adoptium.net/) から JDK 21 のインストーラーをダウンロード
-2. インストーラーを実行（PATH への追加オプションにチェック）
-3. PowerShell を再起動して確認：
-
-```powershell
-java -version
-# openjdk version "21.x.x" と表示されること
-```
-
-#### macOS
-
-```bash
-brew install --cask temurin
-java -version
-```
-
-#### Linux
-
-```bash
-sudo apt update
-sudo apt install -y openjdk-21-jdk
-java -version
-```
-
-### 2.3 Firebase CLI
-
+### 2.1 Firebase CLI のインストール
+Firebaseプロジェクトを管理するために、Firebase CLIをグローバルにインストールします。
 ```bash
 npm install -g firebase-tools
-firebase --version   # 14.x.x と表示されること
 ```
 
-### 2.4 Google Cloud CLI（gcloud）
-
-バックエンド（Cloud Run）の開発・デプロイに必要です。
-
-#### Windows
-
-1. [Google Cloud SDK インストーラー](https://cloud.google.com/sdk/docs/install?hl=ja#windows) をダウンロード
-2. インストーラーを実行
-3. インストール完了後、表示されるターミナルで初期化：
-
-```powershell
-gcloud init
-gcloud --version
-```
-
-#### macOS
-
+### 2.2 Firebase へのログイン
+以下のコマンドを実行し、Googleアカウントでログインします。
 ```bash
-brew install --cask google-cloud-sdk
-gcloud init
+firebase login
 ```
+ブラウザが開くので、Firebaseプロジェクト権限を持つGoogleアカウントで許可してください。
 
-#### Linux
+## 3. 環境変数の設定
 
-```bash
-sudo apt-get install apt-transport-https ca-certificates gnupg curl
-curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
-sudo apt-get update && sudo apt-get install google-cloud-cli
-gcloud init
-```
+フロントエンドとバックエンドのそれぞれで、環境変数ファイルが必要です。
 
-### 2.5 Docker（バックエンド開発用）
-
-#### Windows
-
-1. [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/) をダウンロードしてインストール
-2. WSL 2 バックエンドを有効化（インストーラーの指示に従う）
-3. Docker Desktop を起動して確認：
-
-```powershell
-docker --version
-docker compose version
-```
-
-#### macOS
-
-```bash
-brew install --cask docker
-# Docker Desktop を起動
-docker --version
-```
-
-#### Linux
-
-```bash
-sudo apt-get update
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo usermod -aG docker $USER
-# ログアウトして再ログイン
-docker --version
-```
-
----
-
-## 3. リポジトリのクローンと初期セットアップ
-
-### 3.1 クローン
-
-```bash
-git clone https://github.com/Seaoftrees08/doronuma_boradgame.git
-cd doronuma_boradgame
-```
-
-### 3.2 依存パッケージのインストール
-
-npm workspaces を使用しているため、ルートで `npm install` を実行するとすべてのワークスペース（frontend / backend / shared）の依存パッケージがまとめてインストールされます。
-
-```bash
-npm install
-```
-
-### 3.3 共有パッケージのビルド
-
-バックエンドやフロントエンドが参照する `@doronuma/shared` パッケージをビルドします。
-
-```bash
-npm run build --workspace=packages/shared
-```
-
-### 3.4 インストール確認
-
-```bash
-# フロントエンドの型チェック
-npx tsc --noEmit
-
-# Lint チェック
-npm run lint
-```
-
----
-
-## 4. 環境変数の設定
-
-### 4.1 フロントエンド（Next.js）用
-
-プロジェクトルートに `.env.local` ファイルを作成します。
-
-```bash
-cp .env.example .env.local
-```
-
-`.env.local` の内容：
+### 3.1 フロントエンド (.env.local)
+ルートディレクトリの直下に `.env.local` という名前のファイルを作成し、以下の内容を記述します。
+値は Firebase コンソールの「プロジェクトの設定」>「全般」>「マイアプリ」から取得した情報を入力してください。
 
 ```env
-# Firebase Configuration
-NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.firebasestorage.app
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
-
-# Cloud Run Backend URL
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
-
-# Emulator Settings (development only)
-NEXT_PUBLIC_USE_EMULATORS=true
+NEXT_PUBLIC_FIREBASE_API_KEY="your-api-key"
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="your-project-id.firebaseapp.com"
+NEXT_PUBLIC_FIREBASE_PROJECT_ID="your-project-id"
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="your-project-id.appspot.com"
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="your-sender-id"
+NEXT_PUBLIC_FIREBASE_APP_ID="your-app-id"
 ```
 
-> **重要:** `.env.local` は `.gitignore` に含まれているため、Git にはコミットされません。  
-> Firebase の設定値は Firebase Console → プロジェクトの設定 → ウェブアプリ で確認できます。  
-> 詳しくは [infrastructure.md](./infrastructure.md) を参照してください。
+### 3.2 バックエンド (開発時は環境変数が自動で読み込まれます)
+Firebase Admin SDK は、`firebase-tools` 経由で実行した場合、自動的に認証情報を取得します。
+本番環境やローカルで単独実行する場合は `GOOGLE_APPLICATION_CREDENTIALS` を設定する必要がありますが、後述の開発用コマンドを使う場合は不要です。
 
-### 4.2 バックエンド（Cloud Run）用
+## 4. 開発サーバーの起動
 
-`packages/backend/.env` ファイルを作成します。
+このプロジェクトは、フロントエンド（Next.js）とバックエンド（Express + Firebase Admin）が分かれています。
+それぞれを同時に起動する必要があります。
 
+### 4.1 バックエンドの開発サーバー起動
+ターミナルを新しく開き、ルートディレクトリで以下のコマンドを実行します。
+これにより、TypeScriptの自動コンパイルとサーバーの自動再起動が有効になります。
 ```bash
-cp packages/backend/.env.example packages/backend/.env
+npm run dev --workspace=@doronuma/backend
 ```
+デフォルトでは `http://localhost:8080` でサーバーが起動します。
 
-```env
-# GCP Configuration
-GCP_PROJECT_ID=your-project-id
-PORT=8080
-
-# Firebase Admin (Emulator 使用時は不要)
-GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account-key.json
-
-# Emulator Settings (development only)
-FIRESTORE_EMULATOR_HOST=localhost:8081
-FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
-```
-
----
-
-## 5. Firebase Emulator のセットアップ
-
-ローカル開発では Firebase Emulator Suite を使用し、実際の Firebase プロジェクトに影響を与えずに開発できます。
-
-### 5.1 Emulator のインストール
-
-```bash
-firebase init emulators
-```
-
-以下の Emulator を選択してインストール:
-- **Authentication Emulator** (ポート: 9099)
-- **Firestore Emulator** (ポート: 8081)
-- **Emulator Suite UI** (ポート: 4000)
-
-### 5.2 Emulator の起動
-
-```bash
-firebase emulators:start
-```
-
-起動後、以下の URL でアクセスできます：
-
-| サービス | URL |
-|:---|:---|
-| Emulator Suite UI | http://localhost:4000 |
-| Authentication Emulator | http://localhost:9099 |
-| Firestore Emulator | http://localhost:8081 |
-
-### 5.3 Emulator データの永続化（オプション）
-
-Emulator のデータをセッション間で保持したい場合：
-
-```bash
-# エクスポート先ディレクトリを指定して起動
-firebase emulators:start --export-on-exit=./emulator-data --import=./emulator-data
-```
-
-> `emulator-data/` ディレクトリは `.gitignore` に追加されています。
-
----
-
-## 6. 開発サーバーの起動
-
-### 6.1 全サービスの一括起動（推奨）
-
-ターミナルを **3つ** 開いて、以下をそれぞれ実行します。
-
-**ターミナル 1: Firebase Emulator**
-```bash
-firebase emulators:start
-```
-
-**ターミナル 2: バックエンド（Cloud Run ローカル）**
-```bash
-npm run dev --workspace=packages/backend
-```
-
-**ターミナル 3: フロントエンド（Next.js）**
+### 4.2 フロントエンドの開発サーバー起動
+もう一つ別のターミナルを開き、ルートディレクトリで以下のコマンドを実行します。
 ```bash
 npm run dev
 ```
+デフォルトでは `http://localhost:3000` でNext.jsアプリが起動します。
 
-### 6.2 アクセス先
+## 5. Firebase ローカルエミュレータの使用（推奨）
 
-| サービス | URL |
-|:---|:---|
-| フロントエンド | http://localhost:3000 |
-| バックエンド API | http://localhost:8080 |
-| Firebase Emulator UI | http://localhost:4000 |
+Firestore のデータをローカルで安全にテストしたい場合は、Firebaseエミュレータを使用できます。
 
----
+1. エミュレータの起動
+   ```bash
+   firebase emulators:start
+   ```
+2. エミュレータを有効にするには、フロントエンドおよびバックエンドのコードでエミュレータのホストに向くように設定を一部書き換えるか、環境変数 `FIRESTORE_EMULATOR_HOST=localhost:8080` 等を設定してサーバーを起動します。
 
-## 7. エディタの設定（推奨）
+## 6. トラブルシューティング
 
-### 7.1 VS Code
-
-推奨拡張機能（`.vscode/extensions.json` に定義予定）：
-
-```json
-{
-  "recommendations": [
-    "dbaeumer.vscode-eslint",
-    "esbenp.prettier-vscode",
-    "bradlc.vscode-tailwindcss",
-    "ms-vscode.vscode-typescript-next",
-    "firebase.firebase-vscode"
-  ]
-}
-```
-
-推奨設定（`.vscode/settings.json`）：
-
-```json
-{
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "editor.formatOnSave": true,
-  "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit"
-  },
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "tailwindCSS.experimental.configFile": null
-}
-```
-
-### 7.2 Cursor / その他のエディタ
-
-VS Code 互換のエディタであれば、上記の設定がそのまま使えます。
-
----
-
-## 8. トラブルシューティング
-
-### `npm install` でエラーが出る
-
-```bash
-# キャッシュをクリアして再インストール
-npm cache clean --force
-rm -rf node_modules package-lock.json
-npm install
-```
-
-### Firebase Emulator が起動しない
-
-```bash
-# Java がインストールされているか確認
-java -version
-
-# ポートが競合していないか確認 (Windows)
-netstat -ano | findstr :8081
-
-# ポートが競合していないか確認 (macOS/Linux)
-lsof -i :8081
-```
-
-### `NEXT_PUBLIC_` 環境変数が読み取れない
-
-- `.env.local` ファイルがプロジェクトルートに存在するか確認
-- 変数名が `NEXT_PUBLIC_` で始まっているか確認
-- 開発サーバーを再起動（環境変数の変更は再起動が必要）
-
-### TypeScript のパス解決エラー
-
-```bash
-# 共有パッケージを再ビルド
-npm run build --workspace=packages/shared
-
-# TypeScript のキャッシュをクリア
-npx tsc --build --clean
-```
-
-### Docker が起動しない（Windows）
-
-- WSL 2 が有効になっているか確認：`wsl --status`
-- Docker Desktop が起動しているか確認
-- Hyper-V が有効になっているか確認（Windows の機能の有効化）
-
----
-
-## 次のステップ
-
-- GCP / Firebase プロジェクトの作成と設定 → [infrastructure.md](./infrastructure.md)
-- ゲーム仕様の確認 → [docs/sabotage/doronuma_sabotage_game_spec.md](./sabotage/doronuma_sabotage_game_spec.md)
+*   **パッケージが見つからないエラーが出る場合**: 
+    ルートディレクトリで `npm install` を再度実行してください。npm workspaces では各パッケージ間のリンク付けが必要です。
+*   **Firebase の権限エラーが出る場合**:
+    `firebase login` で正しいアカウントにログインしているか確認してください。
+*   **Next.js のコンパイルエラー**:
+    共有パッケージ `@doronuma/shared` を変更した場合は、ルートディレクトリで `npm run build --workspace=@doronuma/shared` を実行して再コンパイルしてください。（バックエンドの `npm run dev` は自動的に共有パッケージの変更を検知しない場合があります）

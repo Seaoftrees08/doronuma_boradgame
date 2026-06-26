@@ -45,8 +45,30 @@ firebase login
 フロントエンドとバックエンドのそれぞれで、環境変数ファイルが必要です。
 
 ### 3.1 フロントエンド (.env.local)
-ルートディレクトリの直下に `.env.local` という名前のファイルを作成し、以下の内容を記述します。
-値は Firebase コンソールの「プロジェクトの設定」>「全般」>「マイアプリ」から取得した情報を入力してください。
+
+ルートディレクトリの直下に `.env.local` という名前のファイルを作成します。
+ここにはFirebaseプロジェクトと連携するための設定値を記述します。以下の手順で値を取得してください。
+
+#### Firebase設定値の取得手順
+1. [Firebase Console](https://console.firebase.google.com/) にアクセスし、Googleアカウントでログインします。
+2. 開発に使用するプロジェクトをクリックして開きます。（プロジェクトがない場合は「プロジェクトを追加」から作成してください）
+3. 左側のメニュー上部にある**設定** にカーソルを当て、**全般**を選択します。
+4. **全般**タブが開いたら、ページの一番下までスクロールして**「マイアプリ」**のセクションを見つけます。
+   - ※まだウェブアプリが登録されていない場合は、**</>** をクリックしてアプリのニックネーム（例: doronuma-web）を入力し、「アプリを登録」をクリックしてください。
+5. マイアプリの項目内にある「SDK の設定と構成」の下のラジオボタンで**「構成」**または**「npm」**を選択すると、以下のようなコードブロックが表示されます。
+
+```javascript
+const firebaseConfig = {
+  apiKey: "AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  authDomain: "your-project-id.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project-id.appspot.com",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abcdef1234567890"
+};
+```
+
+6. このコードブロック内の各値を、先ほど作成した `.env.local` ファイルに以下のように対応させて貼り付けてください。ダブルクォーテーション (`"`) で囲むのを忘れないようにしてください。
 
 ```env
 NEXT_PUBLIC_FIREBASE_API_KEY="your-api-key"

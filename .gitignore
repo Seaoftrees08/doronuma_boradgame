@@ -40,3 +40,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# workspace build output
+dist/
+packages/*/dist/
+packages/**/*.js
+packages/**/*.d.ts
+
+# Firebase
+.firebase/
+firebase-debug.log*

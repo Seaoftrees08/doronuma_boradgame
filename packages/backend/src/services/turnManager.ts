@@ -71,7 +71,7 @@ export const processTimeoutTurn = async (
   advanceTurn(room, gameState);
 
   transaction.update(roomRef, { players: room.players });
-  transaction.update(stateRef, Object.assign({}, gameState));
+  transaction.update(stateRef, { ...gameState });
   transaction.update(handRef, { cards: handCards });
   transaction.update(deckRef, { cards: deckCards });
   transaction.update(discardRef, { cards: discardCards });

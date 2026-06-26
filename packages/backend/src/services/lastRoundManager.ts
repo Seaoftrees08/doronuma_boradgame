@@ -26,5 +26,5 @@ export const triggerSuddenDeathEnd = async (
   }
 
   transaction.update(roomRef, { status: room.status, players: room.players });
-  transaction.update(stateRef, Object.assign({}, gameState));
+  transaction.update(stateRef, { ...gameState });
 };

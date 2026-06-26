@@ -1,7 +1,15 @@
-import { getAuth, signInAnonymously, onAuthStateChanged, browserLocalPersistence, setPersistence } from "firebase/auth";
+import { getAuth, signInAnonymously, onAuthStateChanged, browserLocalPersistence, setPersistence, connectAuthEmulator } from "firebase/auth";
 import { app } from "./config";
 
 export const auth = getAuth(app);
+
+if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_EMULATOR === "true") {
+  try {
+    connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  } catch (e) {
+    console.warn("Auth emulator already connected:", e);
+  }
+}
 
 export const signInAnonymouslyUser = async () => {
   try {

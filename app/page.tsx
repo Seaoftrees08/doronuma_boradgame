@@ -25,15 +25,21 @@ export default function Home() {
         },
         body: JSON.stringify({ hostName }),
       });
-      const data = await response.json();
-      if (response.ok && data.roomId) {
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (_) {}
+
+      if (response.ok && data?.roomId) {
         router.push(`/room/${data.roomId}`);
       } else {
-        alert("部屋の作成に失敗しました");
+        const errorMsg = data?.error ? ` (${data.error})` : "";
+        alert(`部屋の作成に失敗しました${errorMsg}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("エラーが発生しました");
+      alert(`エラーが発生しました: ${error.message || error}`);
     } finally {
       setIsCreating(false);
     }
@@ -52,14 +58,21 @@ export default function Home() {
         },
         body: JSON.stringify({ playerName }),
       });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (_) {}
+
       if (response.ok) {
         router.push(`/room/${roomId}`);
       } else {
-        alert("部屋への参加に失敗しました。合言葉が間違っているか、既にゲームが開始されています。");
+        const errorMsg = data?.error ? ` (${data.error})` : "";
+        alert(`部屋への参加に失敗しました。合言葉（部屋ID）を確認するか、既にゲームが開始されている可能性があります。${errorMsg}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("エラーが発生しました");
+      alert(`エラーが発生しました: ${error.message || error}`);
     } finally {
       setIsCreating(false);
     }

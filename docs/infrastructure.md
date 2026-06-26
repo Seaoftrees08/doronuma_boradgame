@@ -111,6 +111,26 @@ Firestoreルール、インデックス、Hostingの設定を記述します。
     ],
     "frameworksBackend": {
       "region": "asia-northeast1"
+    },
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "run": {
+          "serviceId": "doronuma-backend",
+          "region": "asia-northeast1"
+        }
+      }
+    ]
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": true
     }
   }
 }

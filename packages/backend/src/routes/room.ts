@@ -7,13 +7,22 @@ import { initializeGame } from '../services/gameEngine';
 const router = Router();
 const db = admin.firestore();
 
+const generateRoomId = (): string => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
 // 部屋の作成
 router.post('/', authenticate, async (req: AuthenticatedRequest, res) => {
   try {
     const { hostName } = req.body;
     const hostId = req.user!.uid;
 
-    const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const roomId = generateRoomId();
     const roomRef = db.collection('rooms').doc(roomId);
 
     const newRoom: GameRoom = {

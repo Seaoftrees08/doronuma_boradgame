@@ -26,6 +26,7 @@ Thumbs.db
 *.pem
 .vscode/
 .idea/
+/tmp_prompt/
 
 # debug
 npm-debug.log*

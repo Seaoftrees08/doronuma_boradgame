@@ -47,10 +47,11 @@ export default function Home() {
 
   const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!roomId.trim() || !playerName.trim() || !user) return;
+    const cleanRoomId = roomId.trim().toUpperCase();
+    if (!cleanRoomId || !playerName.trim() || !user) return;
     setIsCreating(true);
     try {
-      const response = await fetch(`/api/rooms/${roomId}/join`, {
+      const response = await fetch(`/api/rooms/${cleanRoomId}/join`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -65,7 +66,7 @@ export default function Home() {
       } catch (_) {}
 
       if (response.ok) {
-        router.push(`/room/${roomId}`);
+        router.push(`/room/${cleanRoomId}`);
       } else {
         const errorMsg = data?.error ? ` (${data.error})` : "";
         alert(`部屋への参加に失敗しました。合言葉（部屋ID）を確認するか、既にゲームが開始されている可能性があります。${errorMsg}`);
@@ -143,7 +144,7 @@ export default function Home() {
                 type="text"
                 placeholder="合言葉 (ルームID)"
                 value={roomId}
-                onChange={(e) => setRoomId(e.target.value)}
+                onChange={(e) => setRoomId(e.target.value.toUpperCase())}
                 required
                 className="w-full px-4 py-2 border rounded-md dark:bg-black dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-red-500"
               />

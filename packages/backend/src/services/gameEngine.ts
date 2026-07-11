@@ -1,6 +1,6 @@
 import * as admin from 'firebase-admin';
-import { GameRoom, GameState, ActionCard, GAME_CONSTANTS } from '@doronuma/shared';
-import { createDeck } from './deck';
+import { GameRoom, GameState, ActionCard, GAME_CONSTANTS, canSynthesize, TurnAction, VictoryPointCard } from '@doronuma/shared';
+import { createDeck, grantPlusOneCard } from './deck';
 
 export const initializeGame = async (roomId: string, hostId: string): Promise<void> => {
   const db = admin.firestore();
@@ -59,8 +59,8 @@ export const initializeGame = async (roomId: string, hostId: string): Promise<vo
       interruptDeadline: null,
       currentAction: null,
       interruptStack: [],
-      needsDiscard: false,
-      discardPlayerId: null
+      synthesisPhase: false,
+      victoryCards: Object.fromEntries(turnOrder.map(id => [id, []]))
     };
 
     // Save state
@@ -79,4 +79,107 @@ export const initializeGame = async (roomId: string, hostId: string): Promise<vo
     transaction.set(roomRef.collection('private').doc('deck'), { cards: fullDeck });
     transaction.set(roomRef.collection('private').doc('discard'), { cards: [] });
   });
+};
+
+export const startSynthesisPhase = (playerId: string, gameState: GameState): void => {
+  grantPlusOneCard(playerId, gameState);
+  gameState.synthesisPhase = true;
+};
+
+export const handleSynthesis = (
+  playerId: string,
+  synthesisType: 'small' | 'large',
+  gameState: GameState
+): { success: boolean; error?: string } => {
+  if (!gameState.synthesisPhase) {
+    return { success: false, error: 'Not in synthesis phase' };
+  }
+  if (gameState.currentTurnPlayerId !== playerId) {
+    return { success: false, error: 'Not your turn' };
+  }
+
+  const pCards = gameState.victoryCards[playerId] || [];
+  if (!canSynthesize(pCards, synthesisType)) {
+    return { success: false, error: 'Insufficient materials for synthesis' };
+  }
+
+  const updatedCards = [...pCards];
+
+  if (synthesisType === 'small') {
+    let count = 0;
+    for (let i = updatedCards.length - 1; i >= 0; i--) {
+      if (updatedCards[i].type === 'PlusOne') {
+        updatedCards.splice(i, 1);
+        count++;
+        if (count === 2) break;
+      }
+    }
+    updatedCards.push({ type: 'PlusThree' });
+  } else {
+    let plusThreeCount = 0;
+    let minusThreeCount = 0;
+
+    for (let i = updatedCards.length - 1; i >= 0; i--) {
+      if (updatedCards[i].type === 'PlusThree' && plusThreeCount < 2) {
+        updatedCards.splice(i, 1);
+        plusThreeCount++;
+      } else if (updatedCards[i].type === 'MinusThree' && minusThreeCount < 1) {
+        updatedCards.splice(i, 1);
+        minusThreeCount++;
+      }
+    }
+    updatedCards.push({ type: 'PlusFive' });
+  }
+
+  gameState.victoryCards[playerId] = updatedCards;
+  return { success: true };
+};
+
+export const endSynthesisPhase = (playerId: string, gameState: GameState): void => {
+  if (gameState.currentTurnPlayerId === playerId) {
+    gameState.synthesisPhase = false;
+  }
+};
+
+export const executeTurnAction = (
+  playerId: string,
+  action: TurnAction,
+  gameState: GameState
+): { success: boolean; error?: string } => {
+  if (gameState.currentTurnPlayerId !== playerId) {
+    return { success: false, error: 'Not your turn' };
+  }
+
+  // 手札上限チェック
+  if (action.type === 'drawOnePlayOne') {
+    const stateAny = gameState as any;
+    const hand = stateAny.hands?.[playerId]?.cards || [];
+    if (hand.length >= GAME_CONSTANTS.MAX_HAND_SIZE) {
+      return { success: false, error: '手札上限のためこのアクションは実行できません' };
+    }
+  }
+
+  // 今後 core logic が追加される
+  return { success: true };
+};
+
+export const calculateFinalScores = (
+  victoryCards: Record<string, VictoryPointCard[]>,
+  afkPlayerIds: string[]
+): Record<string, number> => {
+  const scores: Record<string, number> = {};
+  const { VICTORY_CARD_POINTS } = require('@doronuma/shared');
+
+  for (const [playerId, cards] of Object.entries(victoryCards)) {
+    if (afkPlayerIds.includes(playerId)) {
+      scores[playerId] = -9999; // 空席プレイヤーは強制最下位
+    } else {
+      let score = 0;
+      for (const card of cards) {
+        score += (VICTORY_CARD_POINTS[card.type] as number) || 0;
+      }
+      scores[playerId] = score;
+    }
+  }
+  return scores;
 };

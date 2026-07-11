@@ -1,4 +1,4 @@
-import { ActionCard, CardType, CARD_COUNTS, VICTORY_POINT_PROBABILITIES, VICTORY_POINT_RANGES } from '@doronuma/shared';
+import { ActionCard, CardType, CARD_COUNTS, VictoryPointCard, GameState } from '@doronuma/shared';
 
 export const createDeck = (suddenDeathRange: number): ActionCard[] => {
   const deck: ActionCard[] = [];
@@ -34,15 +34,16 @@ export const drawCard = (deck: ActionCard[]): ActionCard | undefined => {
   return deck.pop();
 };
 
-export const drawVictoryCard = (): number => {
-  const rand = Math.random();
-  if (rand < VICTORY_POINT_PROBABILITIES.MINUS) {
-    const range = VICTORY_POINT_RANGES.MINUS;
-    return range[Math.floor(Math.random() * range.length)];
-  } else if (rand < VICTORY_POINT_PROBABILITIES.MINUS + VICTORY_POINT_PROBABILITIES.ZERO) {
-    return 0;
-  } else {
-    const range = VICTORY_POINT_RANGES.PLUS;
-    return range[Math.floor(Math.random() * range.length)];
+export const drawVictoryCard = (): VictoryPointCard => {
+  return { type: 'MinusThree' };
+};
+
+export const grantPlusOneCard = (playerId: string, gameState: GameState): void => {
+  if (!gameState.victoryCards) {
+    gameState.victoryCards = {};
   }
+  if (!gameState.victoryCards[playerId]) {
+    gameState.victoryCards[playerId] = [];
+  }
+  gameState.victoryCards[playerId].push({ type: 'PlusOne' });
 };

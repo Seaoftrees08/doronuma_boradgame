@@ -1,4 +1,4 @@
-import { GameRoom, Player, GameState } from './game';
+import { GameRoom, Player, GameState, ActionCard, VictoryPointCard } from './game';
 
 // Document representations might differ slightly from the combined state 
 // depending on how timestamps and references are handled, but for now 
@@ -9,6 +9,11 @@ export type RoomDocument = GameRoom;
 export type PlayerDocument = Player;
 
 export type GameStateDocument = GameState;
+
+export interface PlayerHandDocument {
+  cards: ActionCard[];
+  victoryCards: VictoryPointCard[];
+}
 
 export interface ActionLogEntry {
   logId?: string; // Often derived from doc ID

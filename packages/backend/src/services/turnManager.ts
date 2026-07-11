@@ -2,6 +2,7 @@ import * as admin from 'firebase-admin';
 import { GameState, GameRoom, ActionCard, TurnActionType, GAME_CONSTANTS } from '@doronuma/shared';
 import { drawCard } from './deck';
 import { triggerSuddenDeathEnd } from './lastRoundManager';
+import { startSynthesisPhase } from './gameEngine';
 
 export const processTimeoutTurn = async (
   transaction: admin.firestore.Transaction,
@@ -25,56 +26,42 @@ export const processTimeoutTurn = async (
     return;
   }
 
-  const handRef = roomRef.collection('hands').doc(playerId);
-  const handDoc = await transaction.get(handRef);
-  const handCards = handDoc.data()?.cards || [];
-  
-  const deckRef = roomRef.collection('private').doc('deck');
-  const deckDoc = await transaction.get(deckRef);
-  const deckCards = deckDoc.data()?.cards || [];
-
-  const discardRef = roomRef.collection('private').doc('discard');
-  const discardDoc = await transaction.get(discardRef);
-  const discardCards = discardDoc.data()?.cards || [];
-
-  if (gameState.needsDiscard) {
-    while (handCards.length > GAME_CONSTANTS.MAX_HAND_SIZE) {
-      const dropIndex = Math.floor(Math.random() * handCards.length);
-      const dropped = handCards.splice(dropIndex, 1)[0];
-      discardCards.push(dropped);
-    }
-    gameState.needsDiscard = false;
-    gameState.discardPlayerId = null;
-  } else {
-    for (let i = 0; i < 2; i++) {
-      const card = drawCard(deckCards);
-      if (card) {
-        if (card.type === 'SuddenDeath') {
-          await triggerSuddenDeathEnd(transaction, roomId, room, gameState, playerId, 'draw');
-          return;
-        }
-        handCards.push(card);
-      }
-    }
-
-    while (handCards.length > GAME_CONSTANTS.MAX_HAND_SIZE) {
-      const dropIndex = Math.floor(Math.random() * handCards.length);
-      const dropped = handCards.splice(dropIndex, 1)[0];
-      discardCards.push(dropped);
-    }
-  }
-
-  player.handCount = handCards.length;
-  gameState.deckRemaining = deckCards.length;
-  gameState.discardCount = discardCards.length;
-
+  // タイムアウト時のアクションはパス（手札・山札に変更はない）
   advanceTurn(room, gameState);
 
   transaction.update(roomRef, { players: room.players });
   transaction.update(stateRef, { ...gameState });
-  transaction.update(handRef, { cards: handCards });
-  transaction.update(deckRef, { cards: deckCards });
-  transaction.update(discardRef, { cards: discardCards });
+};
+
+export const handleTimeout = (playerId: string, gameState: GameState, room?: GameRoom): void => {
+  // パス処理（手札変更なし）
+  if (room) {
+    advanceTurn(room, gameState);
+  } else {
+    // テスト用に簡易的に次のプレイヤーに切り替える
+    const currentIndex = gameState.turnOrder.indexOf(gameState.currentTurnPlayerId);
+    const nextPlayerId = gameState.turnOrder[(currentIndex + 1) % gameState.turnOrder.length];
+    gameState.currentTurnPlayerId = nextPlayerId;
+  }
+};
+
+export const skipAfkPlayer = (playerId: string, gameState: GameState, room?: GameRoom): void => {
+  // アクションカウントをインクリメント（パス処理）
+  if (gameState.actionCountPerPlayer[playerId] !== undefined) {
+    gameState.actionCountPerPlayer[playerId] += 1;
+  }
+  
+  if (room) {
+    advanceTurn(room, gameState);
+  } else {
+    const currentIndex = gameState.turnOrder.indexOf(gameState.currentTurnPlayerId);
+    const nextPlayerId = gameState.turnOrder[(currentIndex + 1) % gameState.turnOrder.length];
+    gameState.currentTurnPlayerId = nextPlayerId;
+  }
+};
+
+export const startTurn = (playerId: string, gameState: GameState): void => {
+  startSynthesisPhase(playerId, gameState);
 };
 
 export const advanceTurn = (room: GameRoom, gameState: GameState) => {
@@ -94,8 +81,6 @@ export const advanceTurn = (room: GameRoom, gameState: GameState) => {
     gameState.currentTurnPlayerId = nextPlayerId;
     gameState.turnDeadline = Date.now() + room.settings.turnTimeLimit * 1000;
     gameState.turnNumber += 1;
-    gameState.needsDiscard = false;
-    gameState.discardPlayerId = null;
     gameState.currentAction = null;
   } else {
     gameState.phase = 'finished';

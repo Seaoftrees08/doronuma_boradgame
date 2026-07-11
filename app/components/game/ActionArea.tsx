@@ -19,7 +19,7 @@ export default function ActionArea({ roomId, gameState, player, hand, selectedCa
   const [pendingAction, setPendingAction] = useState<TurnActionType | null>(null);
 
   const isMyTurn = gameState.currentTurnPlayerId === player.playerId;
-  if (!isMyTurn || gameState.phase !== 'playing' || gameState.needsDiscard) {
+  if (!isMyTurn || gameState.phase !== 'playing') {
     return null;
   }
 
@@ -51,6 +51,10 @@ export default function ActionArea({ roomId, gameState, player, hand, selectedCa
 
   const drawTwoStatus = checkDrawTwo();
   const drawOnePlayOneStatus = checkDrawOnePlayOne();
+  const discardPlayTwoStatus = {
+    valid: availableActions.discardPlayTwo,
+    reason: !availableActions.discardPlayTwo ? "手札が2枚以上必要です" : ""
+  };
   const passStatus = checkPass();
 
   const handleConfirmAction = async () => {
@@ -71,6 +75,7 @@ export default function ActionArea({ roomId, gameState, player, hand, selectedCa
     switch (type) {
       case 'drawTwo': return '2枚引いて終了';
       case 'drawOnePlayOne': return '1枚引いて1枚使う';
+      case 'discardPlayTwo': return '引かずに捨てて2枚まで使う';
       case 'pass': return 'パス（何もしない）';
       default: return '';
     }
@@ -118,7 +123,7 @@ export default function ActionArea({ roomId, gameState, player, hand, selectedCa
       ) : (
         /* アクション選択画面 */
         <div className="w-full flex flex-col space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             
             {/* 2枚引く */}
             <div className="flex flex-col items-center space-y-1">
@@ -154,6 +159,26 @@ export default function ActionArea({ roomId, gameState, player, hand, selectedCa
               {!drawOnePlayOneStatus.valid && (
                 <span className="text-[10px] text-zinc-500 font-bold text-center leading-tight">
                   {drawOnePlayOneStatus.reason}
+                </span>
+              )}
+            </div>
+
+            {/* 引かずに捨てて2枚まで使う */}
+            <div className="flex flex-col items-center space-y-1">
+              <button
+                disabled={loading || !discardPlayTwoStatus.valid}
+                onClick={() => setPendingAction('discardPlayTwo')}
+                className={`w-full py-3 px-4 rounded-xl font-bold transition-all border ${
+                  discardPlayTwoStatus.valid
+                    ? 'bg-red-600 text-white hover:bg-red-700 hover:border-red-500 shadow-[0_0_12px_rgba(220,38,38,0.25)] cursor-pointer'
+                    : 'bg-zinc-900/60 text-zinc-650 border-zinc-850 opacity-40 cursor-not-allowed'
+                }`}
+              >
+                引かずに捨てて2枚まで使う
+              </button>
+              {!discardPlayTwoStatus.valid && (
+                <span className="text-[10px] text-zinc-500 font-bold text-center leading-tight">
+                  {discardPlayTwoStatus.reason}
                 </span>
               )}
             </div>

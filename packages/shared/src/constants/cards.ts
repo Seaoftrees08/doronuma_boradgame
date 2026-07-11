@@ -1,28 +1,32 @@
-import { CardType } from '../types/game';
+import { CardType, VictoryCardType } from '../types/game';
 
 export const CARD_COUNTS: Record<CardType, number> = {
-  Harassment: 15,
-  Accomplice: 8,
+  GainOne: 5,
+  GainTwo: 3,
+  GainThree: 2,
+  Harassment: 8,
+  Accomplice: 4,
   Barrage: 4,
-  Nullify: 7,
-  Deflect: 6,
-  DoubleBack: 4,
+  QuagmireDrag: 4,
+  Nullify: 2,
+  Deflect: 2,
+  DoubleBack: 1,
+  Repel: 5,
   Plunder: 3,
+  HandRaid: 2,
   CutDown: 2,
+  Share: 2,
   SuddenDeath: 1
 };
 
 export const TOTAL_CARDS = Object.values(CARD_COUNTS).reduce((a, b) => a + b, 0);
 
-// Victory point probabilities
-export const VICTORY_POINT_PROBABILITIES = {
-  MINUS: 0.80, // 80% chance (-1 to -5)
-  ZERO: 0.15,  // 15% chance (0)
-  PLUS: 0.05   // 5% chance (+2 to +5)
-};
+export const SABOTAGE_CARDS: CardType[] = ['Harassment', 'Accomplice', 'Barrage', 'QuagmireDrag'];
+export const COUNTER_CARDS: CardType[] = ['Nullify', 'Deflect', 'DoubleBack', 'Repel'];
 
-export const VICTORY_POINT_RANGES = {
-  MINUS: [-1, -2, -3, -4, -5],
-  ZERO: [0],
-  PLUS: [2, 3, 4, 5]
+export const VICTORY_CARD_POINTS: Record<VictoryCardType, number> = {
+  PlusOne: 1,
+  PlusThree: 3,
+  PlusFive: 5,
+  MinusThree: -3
 };

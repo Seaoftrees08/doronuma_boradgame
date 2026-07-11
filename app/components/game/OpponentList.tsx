@@ -1,6 +1,6 @@
 "use client";
 
-import { Player, GameState } from "@doronuma/shared";
+import { Player, GameState, VICTORY_CARD_POINTS } from "@doronuma/shared";
 
 interface Props {
   players: Record<string, Player>;
@@ -33,6 +33,10 @@ export default function OpponentList({
         const isAfk = player.status === 'afk';
         const isFinished = gameState.phase === 'finished';
 
+        // 勝利点カードの合計得点を計算
+        const pCards = gameState.victoryCards?.[playerId] || [];
+        const totalScore = pCards.reduce((sum, card) => sum + (VICTORY_CARD_POINTS[card.type] || 0), 0);
+
         return (
           <div 
             key={playerId}
@@ -55,17 +59,23 @@ export default function OpponentList({
               </div>
             )}
             {isAfk && (
-              <div className="absolute -top-3 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                AFK
+              <div className="absolute -top-3 bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                AFK / 攻撃対象外
               </div>
             )}
             <div className="font-bold text-center mb-2 truncate w-full text-zinc-100">{player.name}</div>
-            <div className="text-sm font-medium text-zinc-400">
-              手札: <span className="text-white">{player.handCount}</span>
+            
+            <div className="text-xs font-medium text-zinc-400">
+              手札: <span className="text-white">{player.handCount}枚</span>
             </div>
+            
+            <div className="text-xs font-medium text-zinc-400 mt-1">
+              得点: <span className="text-emerald-400 font-bold">{totalScore}点</span>
+            </div>
+
             {isFinished && (
-              <div className="mt-2 text-sm font-black text-red-400">
-                Score: {player.score}
+              <div className="mt-2 text-xs font-black text-red-400">
+                最終結果
               </div>
             )}
           </div>

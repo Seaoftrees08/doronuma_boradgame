@@ -9,8 +9,7 @@ import OpponentList from "./OpponentList";
 import ActionArea from "./ActionArea";
 import DeckArea from "./DeckArea";
 import TurnIndicator from "./TurnIndicator";
-import DiscardPrompt from "./DiscardPrompt";
-import InterruptPrompt from "./InterruptPrompt";
+import { InterruptOverlay } from "./InterruptOverlay";
 import ResultScreen from "./ResultScreen";
 
 export default function GameBoard() {
@@ -126,8 +125,13 @@ export default function GameBoard() {
       </div>
 
       {/* Overlays */}
-      <DiscardPrompt roomId={room.roomId} gameState={gameState} hand={hand} selectedCardIds={selectedCardIds} />
-      <InterruptPrompt roomId={room.roomId} gameState={gameState} players={room.players} hand={hand} currentUserId={user?.uid} selectedCardIds={selectedCardIds} />
+      <InterruptOverlay
+        currentCardType={gameState.currentAction && 'playedCards' in gameState.currentAction
+          ? (gameState.currentAction as any).playedCards?.[0]?.type || null
+          : null}
+        playerHand={hand}
+        isActive={gameState.phase === 'interrupt'}
+      />
       <ResultScreen gameState={gameState} players={room.players} currentUserId={user?.uid} />
     </div>
   );

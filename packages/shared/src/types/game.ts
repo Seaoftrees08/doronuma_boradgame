@@ -1,14 +1,15 @@
 export type PlayerStatus = "waiting" | "ready" | "playing" | "afk" | "observer";
 
 export type CardType = 
-  | "Harassment" 
-  | "Accomplice" 
-  | "Barrage" 
-  | "Nullify" 
-  | "Deflect" 
-  | "DoubleBack" 
-  | "Plunder" 
-  | "CutDown" 
+  // 得点取得系
+  | "GainOne" | "GainTwo" | "GainThree"
+  // 妨害系
+  | "Harassment" | "Accomplice" | "Barrage" | "QuagmireDrag"
+  // 妨害への対抗
+  | "Nullify" | "Deflect" | "DoubleBack" | "Repel"
+  // 強奪・妨害
+  | "Plunder" | "HandRaid" | "CutDown" | "Share"
+  // 特殊
   | "SuddenDeath";
 
 export interface ActionCard {
@@ -16,8 +17,10 @@ export interface ActionCard {
   type: CardType;
 }
 
+export type VictoryCardType = 'PlusOne' | 'PlusThree' | 'PlusFive' | 'MinusThree';
+
 export interface VictoryPointCard {
-  points: number;
+  type: VictoryCardType;
 }
 
 export interface GameSettings {
@@ -64,28 +67,22 @@ export interface GameState {
   interruptDeadline: number | null;
   currentAction: TurnAction | null;
   interruptStack: InterruptAction[];
-  needsDiscard: boolean;
-  discardPlayerId: string | null;
+  synthesisPhase: boolean;
+  victoryCards: Record<string, VictoryPointCard[]>;
 }
 
-export type TurnActionType = "drawTwo" | "drawOnePlayOne" | "discardPlayTwo" | "pass";
+export type TurnAction =
+  | { type: 'drawTwo'; playerId?: string }
+  | { type: 'drawOnePlayOne'; cardId: string; playerId?: string; targetPlayerId?: string }
+  | { type: 'discardPlayTwo'; discardCardId: string; playCardIds: string[]; playerId?: string; targetPlayerId?: string }
+  | { type: 'pass'; playerId?: string }
+  | { type: 'synthesize'; synthesisType: 'small' | 'large'; playerId?: string };
 
-export interface TurnAction {
-  type: TurnActionType;
-  playerId: string;
-  playedCards: ActionCard[];
-  discardedCards?: ActionCard[];
-  targetPlayerId?: string;
-}
+export type TurnActionType = TurnAction['type'];
 
 export interface InterruptAction {
   playerId: string;
   playedCard: ActionCard;
   targetPlayerId?: string;
   targetActionId?: string; // Optional: The ID of the action being interrupted
-}
-
-export interface DiscardAction {
-  playerId: string;
-  discardedCards: ActionCard[];
 }

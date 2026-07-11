@@ -54,7 +54,7 @@ export default function GameSettings({ roomId, settings }: Props) {
       </div>
 
       <div>
-        <label className="block text-sm font-bold mb-1">1ターンの制限時間 (秒)</label>
+        <label className="block text-sm font-bold mb-1">自身のターン時間 (秒)</label>
         <input 
           type="number" 
           min="5" max="300"

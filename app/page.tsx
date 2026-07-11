@@ -10,7 +10,7 @@ export default function Home() {
   const [playerName, setPlayerName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, error: authError } = useAuth();
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +90,19 @@ export default function Home() {
           <p className="text-sm text-zinc-500 dark:text-zinc-400">Doronuma Sabotage</p>
         </div>
 
+        {authError && (
+          <div className="p-4 bg-red-50 border border-red-200 dark:bg-red-950/20 dark:border-red-900/50 rounded-lg text-sm text-red-600 dark:text-red-400 space-y-1">
+            <p className="font-bold text-left">接続エラーが発生しました</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 text-left">
+              PC上のFirebaseエミュレータ（ポート 9099/8080）への接続に失敗している可能性があります。
+              PCのファイアウォール設定や、同じWi-Fiに接続されているか確認してください。
+            </p>
+            <p className="text-xs font-mono bg-white/50 dark:bg-black/20 p-1 rounded overflow-x-auto text-left">
+              {authError.message || String(authError)}
+            </p>
+          </div>
+        )}
+
         <div className="space-y-6">
           {/* 部屋を作成 */}
           <div className="p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg space-y-4 bg-zinc-50 dark:bg-zinc-950/50">
@@ -105,7 +118,7 @@ export default function Home() {
               />
               <button
                 type="submit"
-                disabled={!hostName.trim() || isCreating}
+                disabled={!hostName.trim() || isCreating || !user}
                 className="w-full py-2 bg-red-600 hover:bg-red-700 disabled:bg-zinc-400 text-white font-bold rounded-md transition-colors"
               >
                 部屋を作成
@@ -144,7 +157,7 @@ export default function Home() {
               />
               <button
                 type="submit"
-                disabled={!roomId.trim() || !playerName.trim() || isCreating}
+                disabled={!roomId.trim() || !playerName.trim() || isCreating || !user}
                 className="w-full py-2 bg-zinc-800 hover:bg-zinc-900 dark:bg-zinc-700 dark:hover:bg-zinc-600 disabled:bg-zinc-400 text-white font-bold rounded-md transition-colors"
               >
                 部屋に参加

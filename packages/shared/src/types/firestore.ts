@@ -4,7 +4,7 @@ import { GameRoom, Player, GameState } from './game';
 // depending on how timestamps and references are handled, but for now 
 // they are essentially the same.
 
-export type RoomDocument = Omit<GameRoom, 'players'>;
+export type RoomDocument = GameRoom;
 
 export type PlayerDocument = Player;
 

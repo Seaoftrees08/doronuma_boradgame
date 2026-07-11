@@ -40,6 +40,24 @@ export default function LobbyPage({ params }: { params: Promise<{ roomId: string
         <RoomHeader roomId={roomId} />
         
         <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm p-6 border border-zinc-200 dark:border-zinc-800">
+          <h2 className="text-xl font-bold mb-4">現在の部屋設定</h2>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-zinc-50 dark:bg-zinc-800/40 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800/80 flex flex-col items-center justify-center text-center">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold mb-1">募集人数</span>
+              <span className="text-2xl font-black text-zinc-800 dark:text-zinc-100">{room.settings.maxPlayers}<span className="text-xs font-normal ml-0.5">人</span></span>
+            </div>
+            <div className="bg-zinc-50 dark:bg-zinc-800/40 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800/80 flex flex-col items-center justify-center text-center">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold mb-1">ターン時間</span>
+              <span className="text-2xl font-black text-zinc-800 dark:text-zinc-100">{room.settings.turnTimeLimit}<span className="text-xs font-normal ml-0.5">秒</span></span>
+            </div>
+            <div className="bg-zinc-50 dark:bg-zinc-800/40 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800/80 flex flex-col items-center justify-center text-center">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold mb-1">割り込み選択</span>
+              <span className="text-2xl font-black text-zinc-800 dark:text-zinc-100">{room.settings.interruptTimeLimit}<span className="text-xs font-normal ml-0.5">秒</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm p-6 border border-zinc-200 dark:border-zinc-800">
           <h2 className="text-xl font-bold mb-4">参加プレイヤー ({Object.keys(room.players).length}/{room.settings.maxPlayers})</h2>
           <PlayerList players={room.players} maxPlayers={room.settings.maxPlayers} currentUserId={user?.uid} roomId={roomId} />
         </div>

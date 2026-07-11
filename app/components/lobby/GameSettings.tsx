@@ -14,8 +14,13 @@ export default function GameSettings({ roomId, settings }: Props) {
   const [saving, setSaving] = useState(false);
   const { user } = useAuth();
 
+  const isModified = 
+    currentSettings.maxPlayers !== settings.maxPlayers ||
+    currentSettings.turnTimeLimit !== settings.turnTimeLimit ||
+    currentSettings.interruptTimeLimit !== settings.interruptTimeLimit;
+
   const handleSave = async () => {
-    if (!user) return;
+    if (!user || !isModified) return;
     setSaving(true);
     try {
       const response = await fetch(`/api/rooms/${roomId}/settings`, {
@@ -77,10 +82,16 @@ export default function GameSettings({ roomId, settings }: Props) {
 
       <button
         onClick={handleSave}
-        disabled={saving}
-        className="w-full py-2 bg-zinc-800 hover:bg-zinc-900 dark:bg-zinc-200 dark:hover:bg-white dark:text-black text-white font-bold rounded transition-colors"
+        disabled={saving || !isModified}
+        className={`w-full py-2 font-bold rounded transition-colors ${
+          saving 
+            ? "bg-zinc-600 text-white cursor-wait"
+            : !isModified
+            ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+            : "bg-red-600 hover:bg-red-700 text-white"
+        }`}
       >
-        {saving ? "保存中..." : "設定を適用"}
+        {saving ? "適用中..." : !isModified ? "設定は適用済みです" : "設定を適用"}
       </button>
     </div>
   );

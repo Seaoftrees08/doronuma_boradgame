@@ -65,7 +65,11 @@ export default function HostControls({ roomId, room }: Props) {
 
       {showSettings && (
         <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-          <GameSettings roomId={roomId} settings={room.settings} />
+          <GameSettings 
+            key={JSON.stringify(room.settings)}
+            roomId={roomId} 
+            settings={room.settings} 
+          />
         </div>
       )}
     </div>

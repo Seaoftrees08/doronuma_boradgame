@@ -68,6 +68,7 @@ doronuma_boradgame/
 |:---|:---|
 | [docs/environment.md](docs/environment.md) | 開発環境構築ガイド（Node.js, Firebase CLI, Docker 等のセットアップ手順） |
 | [docs/infrastructure.md](docs/infrastructure.md) | GCP / Firebase インフラ構築ガイド（プロジェクト作成〜デプロイまでの全手順） |
+| [docs/debug.md](docs/debug.md) | LAN内の他デバイスからのアクセス・デバッグ方法 |
 
 ### ゲーム仕様
 
@@ -89,21 +90,56 @@ git clone https://github.com/Seaoftrees08/doronuma_boradgame.git
 cd doronuma_boradgame
 ```
 
-### 2. 依存パッケージのインストール
+### 2. 依存パッケージのインストールと環境設定
 
 ```bash
 npm install
 ```
 
-### 3. 開発サーバーの起動
+また、`.env` ファイルを作成し、Firebase エミュレータ接続用の環境変数が有効になっていることを確認してください（`.env_sample` をコピーして利用できます）。
+```bash
+cp .env_sample .env
+```
+
+### 3. 開発サーバーとエミュレータの起動
+
+ローカル環境での開発には、フロントエンド、バックエンド、および Firebase エミュレータの起動が必要です（※エミュレータの動作には Java v11 以上が必要です）。
+
+#### 3.1 Firebase ローカルエミュレータの起動
+
+```bash
+# Firebase CLI のインストール (未インストールの場合)
+npm install -g firebase-tools
+
+# Firebase 実験的機能の有効化 (初回のみ)
+firebase experiments:enable webframeworks
+
+# エミュレータの起動
+firebase emulators:start --only auth,firestore
+```
+
+*   **Firestore エミュレータ**: `localhost:8080` (firebase.json 設定値)
+*   **Auth エミュレータ**: `localhost:9099` (firebase.json 設定値)
+*   **エミュレータ UI**: エミュレータ起動時に表示されるURL（通常 `localhost:4000`）から、データの確認や認証ユーザーの管理が行えます。
+
+#### 3.2 バックエンドサーバーの起動
+
+```bash
+npm run dev --workspace=@doronuma/backend
+```
+
+#### 3.3 フロントエンドサーバーの起動
 
 ```bash
 npm run dev
 ```
 
-http://localhost:3000 でアクセスできます。
+起動後、http://localhost:3000 にアクセスして動作確認が行えます。
 
-> 詳しいセットアップ手順は [docs/environment.md](docs/environment.md) を参照してください。
+> **LAN内の別デバイスからテストしたい場合**:
+> スマホや別のPCからアクセスしてデバッグする方法については、[LAN内の他デバイスからのアクセス・デバッグガイド](docs/debug.md) を参照してください。
+
+> ※詳細なセットアップ手順やトラブルシューティングは、[開発環境構築ガイド](docs/environment.md) および [インフラストラクチャ・デプロイガイド](docs/infrastructure.md) を参照してください。
 
 ---
 

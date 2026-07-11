@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { GameState, Player } from "@doronuma/shared";
 
 interface Props {
@@ -12,9 +13,30 @@ export default function TurnIndicator({ gameState, players, currentUserId }: Pro
   const isMyTurn = gameState.currentTurnPlayerId === currentUserId;
   const currentPlayer = players[gameState.currentTurnPlayerId];
 
-  // A very basic remaining seconds display (might need interval update in real implementation)
-  const remainingMs = Math.max(0, gameState.turnDeadline - Date.now());
-  const remainingSec = Math.ceil(remainingMs / 1000);
+  const [remainingSec, setRemainingSec] = useState<number>(0);
+
+  useEffect(() => {
+    const calculateRemaining = () => {
+      const deadline = gameState.phase === 'interrupt' && gameState.interruptDeadline 
+        ? gameState.interruptDeadline 
+        : gameState.turnDeadline;
+      
+      const remainingMs = Math.max(0, deadline - Date.now());
+      return Math.ceil(remainingMs / 1000);
+    };
+
+    setRemainingSec(calculateRemaining());
+
+    const intervalId = setInterval(() => {
+      const sec = calculateRemaining();
+      setRemainingSec(sec);
+      if (sec <= 0) {
+        clearInterval(intervalId);
+      }
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [gameState.turnDeadline, gameState.interruptDeadline, gameState.phase]);
 
   return (
     <div className="flex flex-col items-center justify-center py-4">

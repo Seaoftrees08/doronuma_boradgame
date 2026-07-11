@@ -57,7 +57,7 @@ export default function GameSettings({ roomId, settings }: Props) {
         <label className="block text-sm font-bold mb-1">1ターンの制限時間 (秒)</label>
         <input 
           type="number" 
-          min="5" max="60"
+          min="5" max="300"
           className="w-full p-2 border rounded dark:bg-black dark:border-zinc-700"
           value={currentSettings.turnTimeLimit}
           onChange={(e) => setCurrentSettings({...currentSettings, turnTimeLimit: Number(e.target.value)})}
@@ -68,7 +68,7 @@ export default function GameSettings({ roomId, settings }: Props) {
         <label className="block text-sm font-bold mb-1">割り込みの選択時間 (秒)</label>
         <input 
           type="number" 
-          min="5" max="60"
+          min="5" max="300"
           className="w-full p-2 border rounded dark:bg-black dark:border-zinc-700"
           value={currentSettings.interruptTimeLimit}
           onChange={(e) => setCurrentSettings({...currentSettings, interruptTimeLimit: Number(e.target.value)})}

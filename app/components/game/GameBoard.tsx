@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGame } from "../../contexts/GameContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useHand } from "../../hooks/useHand";
@@ -23,6 +23,42 @@ export default function GameBoard() {
 
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+
+  // タイムアウト監視とバックエンド自動通知
+  useEffect(() => {
+    if (!room || !gameState) return;
+
+    const deadline = gameState.phase === 'interrupt' && gameState.interruptDeadline
+      ? gameState.interruptDeadline
+      : gameState.turnDeadline;
+
+    if (!deadline) return;
+
+    const checkTimeout = async () => {
+      const now = Date.now();
+      if (now >= deadline) {
+        try {
+          const response = await fetch(`/api/rooms/${room.roomId}/check-timeout`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${await user?.getIdToken()}`
+            }
+          });
+          if (!response.ok) {
+            console.error("Timeout check failed");
+          }
+        } catch (error) {
+          console.error("Error invoking timeout check:", error);
+        }
+      }
+    };
+
+    const delay = Math.max(0, deadline - Date.now());
+    const timerId = setTimeout(checkTimeout, delay + 1000); // 1秒余裕を持たせる
+
+    return () => clearTimeout(timerId);
+  }, [room?.roomId, gameState?.turnDeadline, gameState?.interruptDeadline, gameState?.phase, user]);
 
   if (roomState.loading || gameStateData.loading || !room || !gameState) {
     return <div className="flex flex-1 items-center justify-center">Loading Game...</div>;

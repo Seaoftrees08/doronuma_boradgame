@@ -5,7 +5,8 @@ export const db = getFirestore(app);
 
 if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_EMULATOR === "true") {
   try {
-    connectFirestoreEmulator(db, "127.0.0.1", 8080);
+    const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+    connectFirestoreEmulator(db, host, 8080);
   } catch (e) {
     console.warn("Firestore emulator already connected:", e);
   }

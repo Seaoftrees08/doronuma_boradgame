@@ -53,3 +53,46 @@ http://[手順2で調べたIPアドレス]:3000
 **例：**
 PCのIPアドレスが `192.168.1.5` だった場合は、以下のURLにアクセスします。
 [http://192.168.1.5:3000](http://192.168.1.5:3000)
+
+---
+
+## トラブルシューティング: 「Blocked cross-origin request...」と表示される場合
+
+Next.js 15以降では、セキュリティ上の理由から開発用アセット（Fast Refresh/HMR用のWebSocket通信など）へのクロスオリジンアクセスが制限されています。スマホなど外部デバイスから接続した際、ターミナルに以下のような警告が表示され、接続がブロックされることがあります。
+
+> **Blocked cross-origin request to Next.js dev resource ...**
+
+### 解決方法
+本プロジェクトでは、この問題を解決するために [next.config.ts](file:///c:/GitHub/doronuma_boradgame/next.config.ts) 内でPCのローカルIPアドレスを自動的に検出し、`allowedDevOrigins` に追加する設定を組み込んでいます。
+
+そのため、開発サーバーを再起動するだけで自動的にブロックが解除されます。
+もしそれでもブロックされる場合は、PC側で起動している開発サーバーを一度停止し、再度 `npx next dev -H 0.0.0.0` を実行して再起動してください。
+
+---
+
+## トラブルシューティング: 「FirebaseError: Firebase: Error (auth/network-request-failed)」と表示される場合
+
+スマートフォンなどの外部デバイスからアクセスした際、画面のローディングが終わらない、またはコンソールに以下のエラーが出力されてサインイン（アノニマス認証など）に失敗することがあります。
+
+> **FirebaseError: Firebase: Error (auth/network-request-failed)**
+
+### 原因
+デフォルトのままだと、以下の2つの問題が発生します。
+1. **エミュレータ側の待ち受け設定**: Firebase Emulator（Auth/Firestore等）がデフォルトで `localhost` (127.0.0.1) のみで動作しているため、外部デバイス（スマホ）からの通信をPCが拒否してしまう。
+2. **クライアント側の接続先設定**: アプリのクライアント側コードがエミュレータの接続先として `127.0.0.1` を指しているため、スマホ自身の中でエミュレータを探そうとして失敗してしまう。
+
+### 解決方法
+本プロジェクトでは、この問題を回避するために以下の対策を適用しています。
+
+1. **`firebase.json` の設定**: 
+   `emulators` 内の各サービス（`auth`, `firestore`, `ui`）に `"host": "0.0.0.0"` を追加し、ローカルネットワーク上のすべての接続を受け付けるようにしています。
+2. **初期化コードの修正**: 
+   [app/lib/firebase/auth.ts](file:///c:/GitHub/doronuma_boradgame/app/lib/firebase/auth.ts) および [app/lib/firebase/firestore.ts](file:///c:/GitHub/doronuma_boradgame/app/lib/firebase/firestore.ts) 内で、接続先を `127.0.0.1` 固定ではなく、ブラウザのアクセス元ホスト名（`window.location.hostname`）を動的に利用して接続するように修正しています。
+
+**※注意**: 設定を反映させるため、**Firebase Emulator を一度停止し、再起動**してください。
+```bash
+# 一度 Ctrl + C で停止した後、再起動
+firebase emulators:start --only auth,firestore
+```
+
+

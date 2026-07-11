@@ -37,7 +37,7 @@ export default function GameBoard() {
       const now = Date.now();
       if (now >= deadline) {
         try {
-          const response = await fetch(`/api/rooms/${room.roomId}/check-timeout`, {
+          const response = await fetch(`/api/games/${room.roomId}/check-timeout`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

@@ -47,29 +47,109 @@ export const resolveInterrupts = (gameState: GameState): void => {
   const currentAction = gameState.currentAction;
   if (!currentAction) return;
 
-  const targetPlayerId = (currentAction as any).targetId || (currentAction as any).targetPlayerId;
+  const originalPlayerId = (currentAction as any).playerId;
+  let targetPlayerId = (currentAction as any).targetPlayerId;
   const targetCardType = (currentAction as any).cardType || (currentAction as any).playedCards?.[0]?.type;
 
-  const stateAny = gameState as any;
-  if (targetPlayerId && stateAny.players?.[targetPlayerId]?.status === 'afk') {
-    // ターゲットが空席（AFK）の場合は攻撃効果をスキップ
-    gameState.currentAction = null;
-    gameState.interruptStack = [];
-    return;
+  let isCanceled = false;
+  let effectMultiplier = 1;
+  let finalRecipientId = targetPlayerId;
+
+  if (gameState.interruptStack && gameState.interruptStack.length > 0) {
+    const lastInterrupt = gameState.interruptStack[gameState.interruptStack.length - 1];
+    const counterType = lastInterrupt.playedCard.type;
+
+    if (counterType === 'Nullify') {
+      isCanceled = true;
+    } else if (counterType === 'Deflect') {
+      if (lastInterrupt.targetPlayerId) {
+        finalRecipientId = lastInterrupt.targetPlayerId;
+      }
+    } else if (counterType === 'DoubleBack') {
+      finalRecipientId = originalPlayerId;
+      effectMultiplier = 2;
+    } else if (counterType === 'Repel') {
+      finalRecipientId = originalPlayerId;
+    }
   }
 
-  // 妨害系カードの効果適用: -3点カードを1枚付与
-  const isSabotage = ['Harassment', 'Accomplice', 'Barrage', 'QuagmireDrag'].includes(targetCardType);
-  if (isSabotage && targetPlayerId) {
-    if (!gameState.victoryCards) {
-      gameState.victoryCards = {};
+  if (!isCanceled && finalRecipientId) {
+    const stateAny = gameState as any;
+    const isTargetAfk = stateAny.players?.[finalRecipientId]?.status === 'afk';
+    
+    if (!isTargetAfk && targetCardType) {
+      if (!gameState.victoryCards) {
+        gameState.victoryCards = {};
+      }
+
+      if (targetCardType === 'Harassment') {
+        const total = 1 * effectMultiplier;
+        if (!gameState.victoryCards[finalRecipientId]) {
+          gameState.victoryCards[finalRecipientId] = [];
+        }
+        for (let i = 0; i < total; i++) {
+          gameState.victoryCards[finalRecipientId].push({ type: 'MinusThree' });
+        }
+      } else if (targetCardType === 'Barrage') {
+        const total = 2 * effectMultiplier;
+        if (!gameState.victoryCards[finalRecipientId]) {
+          gameState.victoryCards[finalRecipientId] = [];
+        }
+        for (let i = 0; i < total; i++) {
+          gameState.victoryCards[finalRecipientId].push({ type: 'MinusThree' });
+        }
+      } else if (targetCardType === 'Accomplice') {
+        for (const pId of gameState.turnOrder) {
+          if (pId !== originalPlayerId) {
+            const recipient = counterCardTargetCheck(pId, originalPlayerId, gameState.interruptStack);
+            if (recipient && stateAny.players?.[recipient]?.status !== 'afk') {
+              if (!gameState.victoryCards[recipient]) {
+                gameState.victoryCards[recipient] = [];
+              }
+              gameState.victoryCards[recipient].push({ type: 'MinusThree' });
+            }
+          }
+        }
+      } else if (targetCardType === 'QuagmireDrag') {
+        if (stateAny.players?.[finalRecipientId]?.status !== 'afk') {
+          if (!gameState.victoryCards[finalRecipientId]) {
+            gameState.victoryCards[finalRecipientId] = [];
+          }
+          for (let i = 0; i < effectMultiplier; i++) {
+            gameState.victoryCards[finalRecipientId].push({ type: 'MinusThree' });
+          }
+        }
+
+        for (const pId of gameState.turnOrder) {
+          if (pId !== originalPlayerId) {
+            if (stateAny.players?.[pId]?.status !== 'afk') {
+              if (!gameState.victoryCards[pId]) {
+                gameState.victoryCards[pId] = [];
+              }
+              gameState.victoryCards[pId].push({ type: 'MinusThree' });
+            }
+          }
+        }
+      }
     }
-    if (!gameState.victoryCards[targetPlayerId]) {
-      gameState.victoryCards[targetPlayerId] = [];
-    }
-    gameState.victoryCards[targetPlayerId].push({ type: 'MinusThree' });
   }
 
   gameState.currentAction = null;
   gameState.interruptStack = [];
+};
+
+const counterCardTargetCheck = (pId: string, attackerId: string, stack: any[]): string | null => {
+  if (!stack || stack.length === 0) return pId;
+  const playerCounter = stack.find(s => s.playerId === pId);
+  if (!playerCounter) return pId;
+
+  const counterType = playerCounter.playedCard.type;
+  if (counterType === 'Nullify') {
+    return null;
+  } else if (counterType === 'Deflect') {
+    return playerCounter.targetPlayerId || pId;
+  } else if (counterType === 'DoubleBack' || counterType === 'Repel') {
+    return attackerId;
+  }
+  return pId;
 };

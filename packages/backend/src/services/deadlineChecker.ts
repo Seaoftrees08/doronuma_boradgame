@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 import { GameState, GameRoom, GAME_CONSTANTS } from '@doronuma/shared';
 import { processTimeoutTurn, advanceTurn } from './turnManager';
+import { resolveInterrupts } from './interruptManager';
 // import { triggerSuddenDeathEnd } from './lastRoundManager';
 
 export const checkAndProcessExpiredDeadlines = async (roomId: string): Promise<void> => {
@@ -31,10 +32,9 @@ export const checkAndProcessExpiredDeadlines = async (roomId: string): Promise<v
     } else if (isInterruptTimeout) {
       // Process interrupt timeout (no one interrupted)
       // Resolve the original action
+      resolveInterrupts(gameState);
       gameState.phase = 'playing';
       gameState.interruptDeadline = null;
-      gameState.currentAction = null;
-      gameState.interruptStack = [];
       advanceTurn(room, gameState);
 
       transaction.update(roomRef, { players: room.players });

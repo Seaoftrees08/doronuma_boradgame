@@ -15,26 +15,21 @@ export default function LobbyPage({ params }: { params: Promise<{ roomId: string
   const { room, loading: roomLoading, error } = useRoom(roomId);
 
   useEffect(() => {
-    if (!roomLoading && room) {
-      if (room.status === "playing") {
+    if (!roomLoading) {
+      if (error || !room) {
+        router.replace("/");
+      } else if (room.status === "playing") {
         router.push(`/room/${roomId}/play`);
       }
     }
-  }, [room, roomLoading, router, roomId]);
+  }, [room, roomLoading, error, router, roomId]);
 
   if (authLoading || roomLoading) {
     return <div className="flex flex-1 items-center justify-center">Loading...</div>;
   }
 
   if (error || !room) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center space-y-4">
-        <p className="text-xl">部屋が見つかりません</p>
-        <button onClick={() => router.push("/")} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-800 rounded">
-          トップに戻る
-        </button>
-      </div>
-    );
+    return <div className="flex flex-1 items-center justify-center">部屋が存在しないため、ロビーに戻ります...</div>;
   }
 
   const isHost = user?.uid === room.hostId;

@@ -3,7 +3,7 @@
 import { useGameActions } from "../../hooks/useGameActions";
 import { getAvailableActions, GameState, Player, ActionCard, TurnActionType } from "@doronuma/shared";
 import { useState } from "react";
-import { getCardI18n } from "../../lib/i18n";
+import { getCardI18n, getActionName } from "../../lib/i18n";
 
 interface Props {
   roomId: string;
@@ -16,6 +16,8 @@ interface Props {
   setDiscardCardId: (id: string | null) => void;
   setSelectedCardIds: React.Dispatch<React.SetStateAction<string[]>>;
 }
+
+
 
 export default function ActionArea({
   roomId,
@@ -99,15 +101,7 @@ export default function ActionArea({
     }
   };
 
-  const getActionName = (type: TurnActionType) => {
-    switch (type) {
-      case 'drawTwo': return '2枚引いて終了';
-      case 'drawOnePlayOne': return '1枚引いて1枚使う';
-      case 'discardPlayTwo': return '引かずに捨てて2枚まで使う';
-      case 'pass': return 'パス（何もしない）';
-      default: return '';
-    }
-  };
+
 
   return (
     <div className="flex flex-col items-center w-full mt-6 bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/80 max-w-2xl mx-auto">
@@ -115,7 +109,7 @@ export default function ActionArea({
         pendingAction === 'discardPlayTwo' && discardCardId === null ? (
           /* discardPlayTwo: 捨てるカード選択UI */
           <div className="flex flex-col items-center space-y-4 py-4 w-full animate-fadeIn">
-            <div className="text-zinc-400 text-sm font-bold tracking-wider uppercase">引かずに捨てて2枚まで使う</div>
+            <div className="text-zinc-400 text-sm font-bold tracking-wider uppercase">行動カードを1枚捨てて2枚まで使う</div>
             <div className="text-lg font-bold text-white text-center">捨てるカードを1枚選んでください：</div>
             <div className="flex flex-wrap gap-2 p-2 w-full justify-center">
               {hand.map(card => {
@@ -282,7 +276,7 @@ export default function ActionArea({
                     : 'bg-zinc-900/60 text-zinc-650 border-zinc-850 opacity-40 cursor-not-allowed'
                 }`}
               >
-                引かずに捨てて2枚まで使う
+                行動カードを1枚捨てて2枚まで使う
               </button>
               {!discardPlayTwoStatus.valid && (
                 <span className="text-[10px] text-zinc-500 font-bold text-center leading-tight">

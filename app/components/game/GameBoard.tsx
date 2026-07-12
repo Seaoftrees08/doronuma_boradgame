@@ -143,7 +143,7 @@ export default function GameBoard() {
         playerHand={hand}
         isActive={gameState.phase === 'interrupt'}
       />
-      <ResultScreen gameState={gameState} players={room.players} currentUserId={user?.uid} />
+      <ResultScreen gameState={gameState} players={room.players} currentUserId={user?.uid} roomId={room.roomId} />
     </div>
   );
 }

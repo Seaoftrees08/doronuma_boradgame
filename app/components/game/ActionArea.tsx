@@ -76,7 +76,12 @@ export default function ActionArea({
   };
 
   const checkDrawOnePlayOne = () => {
-    if (!availableActions.drawOnePlayOne) return { valid: false, reason: "山札がないか、手札がありません" };
+    if (!availableActions.drawOnePlayOne) {
+      if (hand.length >= GAME_CONSTANTS.MAX_HAND_SIZE) {
+        return { valid: false, reason: "手札が上限枚数(5枚)のため選択できません" };
+      }
+      return { valid: false, reason: "山札がないか、手札がありません" };
+    }
     if (selectedCardsCount !== 1) return { valid: false, reason: "カードを1枚だけ選んでください" };
     if (hasCounterCard) return { valid: false, reason: "対抗カードは自分のターンに使用できません" };
     if (isAttackCard && !selectedTargetId) return { valid: false, reason: "対象プレイヤーを選んでください" };

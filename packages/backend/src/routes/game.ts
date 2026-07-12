@@ -99,6 +99,9 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
 
         advanceTurn(room, gameState);
       } else if (actionType === 'drawOnePlayOne') {
+        if (hand.length >= GAME_CONSTANTS.MAX_HAND_SIZE) {
+          throw new Error('手札上限のためこのアクションは実行できません');
+        }
         const drawn = drawCards(1);
         let currentHand = [...hand, ...drawn];
 

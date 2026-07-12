@@ -7,9 +7,10 @@ interface Props {
   gameState: GameState;
   players: Record<string, Player>;
   currentUserId?: string;
+  roomId: string;
 }
 
-export default function ResultScreen({ gameState, players, currentUserId }: Props) {
+export default function ResultScreen({ gameState, players, currentUserId, roomId }: Props) {
   const router = useRouter();
   
   if (gameState.phase !== 'finished') return null;
@@ -60,10 +61,10 @@ export default function ResultScreen({ gameState, players, currentUserId }: Prop
         </div>
 
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push(`/room/${roomId}`)}
           className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors"
         >
-          トップに戻る
+          ロビーに戻る
         </button>
       </div>
     </div>

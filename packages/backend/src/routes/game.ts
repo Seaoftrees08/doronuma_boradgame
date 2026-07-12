@@ -235,7 +235,12 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
               if (!gameState.victoryCards[targetPlayerId]) {
                 gameState.victoryCards[targetPlayerId] = [];
               }
-                    } else if (actionType === 'discardPlayTwo') {
+              gameState.victoryCards[targetPlayerId].push(sharedCard);
+            }
+          }
+          advanceTurn(room, gameState);
+        }
+      } else if (actionType === 'discardPlayTwo') {
         const { targetPlayerIds } = req.body;
         if (!playedCardIds || playedCardIds.length < 1) {
           throw new Error('Must select a card to discard');
@@ -368,13 +373,6 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
                   gameState.victoryCards[currentTargetPlayerId] = [];
                 }
                 gameState.victoryCards[currentTargetPlayerId].push(sharedCard);
-              }
-            }
-          }
-
-          advanceTurn(room, gameState);
-        }
-      } else if (actionType === 'pass') {ryCards[targetPlayerId].push(sharedCard);
               }
             }
           }

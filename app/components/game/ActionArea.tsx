@@ -2,7 +2,9 @@
 
 import { useGameActions } from "../../hooks/useGameActions";
 import { getAvailableActions, GameState, Player, ActionCard, TurnActionType } from "@doronuma/shared";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { CARD_IMAGE_PATHS } from "../../lib/cardImages";
 import { getCardI18n, getActionName } from "../../lib/i18n";
 
 interface Props {
@@ -33,6 +35,13 @@ export default function ActionArea({
   const actions = useGameActions(roomId);
   const [loading, setLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<TurnActionType | null>(null);
+  const [tempDiscardCardId, setTempDiscardCardId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (discardCardId === null) {
+      setTempDiscardCardId(null);
+    }
+  }, [discardCardId]);
 
   const isMyTurn = gameState.currentTurnPlayerId === player.playerId;
   if (!isMyTurn || gameState.phase !== 'playing') {
@@ -111,32 +120,74 @@ export default function ActionArea({
           <div className="flex flex-col items-center space-y-4 py-4 w-full animate-fadeIn">
             <div className="text-zinc-400 text-sm font-bold tracking-wider uppercase">行動カードを1枚捨てて2枚まで使う</div>
             <div className="text-lg font-bold text-white text-center">捨てるカードを1枚選んでください：</div>
-            <div className="flex flex-wrap gap-2 p-2 w-full justify-center">
-              {hand.map(card => {
-                const cardInfo = getCardI18n(card.type);
+            <div className="flex gap-2 overflow-x-auto p-4 bg-zinc-900/50 rounded-xl border border-zinc-800 w-full justify-center">
+              {hand.map((card) => {
+                const isSelected = tempDiscardCardId === card.id;
+                const imagePath = CARD_IMAGE_PATHS[card.type];
                 return (
-                  <button
+                  <div
                     key={card.id}
-                    onClick={() => {
-                      setDiscardCardId(card.id);
-                      setSelectedCardIds([]);
-                    }}
-                    className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 px-3 rounded-lg border border-zinc-700 text-xs cursor-pointer min-w-[80px]"
+                    className={`
+                      relative min-w-[90px] h-[126px] transition-all
+                      ${isSelected ? '-translate-y-2' : 'hover:-translate-y-1'}
+                    `}
                   >
-                    {cardInfo.name}
-                  </button>
+                    <button
+                      onClick={() => {
+                        setTempDiscardCardId(prev => prev === card.id ? null : card.id);
+                      }}
+                      className={`
+                        w-full h-full rounded-lg transition-all
+                        flex flex-col items-center justify-center text-center overflow-hidden
+                        ${isSelected ? 'ring-4 ring-red-500' : ''}
+                        cursor-pointer bg-zinc-800 border-2 border-zinc-700
+                      `}
+                    >
+                      {imagePath ? (
+                        <div className="relative w-full h-full">
+                          <Image
+                            src={imagePath}
+                            alt={card.type}
+                            fill
+                            sizes="90px"
+                            className="object-cover"
+                            priority
+                          />
+                        </div>
+                      ) : (
+                        <span className="font-bold text-white text-xs">{card.type}</span>
+                      )}
+                    </button>
+                  </div>
                 );
               })}
             </div>
-            <button
-              onClick={() => {
-                setPendingAction(null);
-                setDiscardCardId(null);
-              }}
-              className="mt-2 py-2 px-4 rounded-xl font-bold bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-850 cursor-pointer text-xs"
-            >
-              キャンセル
-            </button>
+            <div className="flex gap-4 w-full max-w-xs pt-2">
+              <button
+                onClick={() => {
+                  setPendingAction(null);
+                  setDiscardCardId(null);
+                  setTempDiscardCardId(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-all cursor-pointer text-sm"
+              >
+                キャンセル
+              </button>
+              <button
+                disabled={tempDiscardCardId === null}
+                onClick={() => {
+                  setDiscardCardId(tempDiscardCardId);
+                  setSelectedCardIds([]);
+                }}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all border ${
+                  tempDiscardCardId !== null
+                    ? 'bg-red-600 hover:bg-red-700 text-white border-red-500 shadow-[0_0_12px_rgba(220,38,38,0.25)] cursor-pointer'
+                    : 'bg-zinc-900/60 text-zinc-650 border-zinc-850 opacity-40 cursor-not-allowed'
+                }`}
+              >
+                確定
+              </button>
+            </div>
           </div>
         ) : (
           /* 確定画面 */

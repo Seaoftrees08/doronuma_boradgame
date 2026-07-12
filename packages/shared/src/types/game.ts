@@ -73,7 +73,7 @@ export interface GameState {
 
 export type TurnAction =
   | { type: 'drawTwo'; playerId?: string }
-  | { type: 'drawOnePlayOne'; cardId: string; playerId?: string; targetPlayerId?: string }
+  | { type: 'drawOnePlayOne'; cardId?: string; playerId?: string; targetPlayerId?: string; step?: 'draw' | 'play' }
   | { type: 'discardPlayTwo'; discardCardId: string; playCardIds: string[]; playerId?: string; targetPlayerId?: string }
   | { type: 'pass'; playerId?: string }
   | { type: 'synthesize'; synthesisType: 'small' | 'large'; playerId?: string };

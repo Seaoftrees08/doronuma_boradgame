@@ -11,9 +11,10 @@ interface Props {
   onCardSelect?: (cardId: string) => void;
   selectedCardIds: string[];
   disabled?: boolean;
+  showDetailOnSelect?: boolean;
 }
 
-export default function PlayerHand({ hand, onCardSelect, selectedCardIds, disabled }: Props) {
+export default function PlayerHand({ hand, onCardSelect, selectedCardIds, disabled, showDetailOnSelect = true }: Props) {
   const [detailCardType, setDetailCardType] = useState<CardType | null>(null);
 
   return (
@@ -35,7 +36,7 @@ export default function PlayerHand({ hand, onCardSelect, selectedCardIds, disabl
             <button
               onClick={() => {
                 onCardSelect?.(card.id);
-                if (!isSelected && selectedCardIds.length === 0) {
+                if (showDetailOnSelect && !isSelected && selectedCardIds.length === 0) {
                   setDetailCardType(card.type);
                 }
               }}

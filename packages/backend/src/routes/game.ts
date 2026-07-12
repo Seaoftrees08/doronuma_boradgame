@@ -99,30 +99,52 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
         }
 
         advanceTurn(room, gameState);
-      } else if (actionType === 'drawOnePlayOne') {
+      } else if (actionType === 'drawOnePlayOneDraw') {
         if (hand.length >= GAME_CONSTANTS.MAX_HAND_SIZE) {
           throw new Error('手札上限のためこのアクションは実行できません');
         }
+        if (gameState.currentAction) {
+          throw new Error('すでにアクションが開始されています');
+        }
+
         const drawn = drawCards(1);
-        let currentHand = [...hand, ...drawn];
+        const newHand = [...hand, ...drawn];
+        room.players[playerId].handCount = newHand.length;
+
+        transaction.set(handRef, { cards: newHand });
+        transaction.set(deckRef, { cards: deck });
+
+        gameState.currentAction = {
+          type: 'drawOnePlayOne',
+          step: 'draw',
+          playerId
+        } as any;
+      } else if (actionType === 'drawOnePlayOnePlay') {
+        if (!gameState.currentAction || 
+            gameState.currentAction.type !== 'drawOnePlayOne' || 
+            (gameState.currentAction as any).step !== 'draw' ||
+            (gameState.currentAction as any).playerId !== playerId) {
+          throw new Error('不正なアクション順序です');
+        }
 
         if (!playedCardIds || playedCardIds.length !== 1) {
           throw new Error('Must select exactly one card to play');
         }
         const playCardId = playedCardIds[0];
-        const cardIndex = currentHand.findIndex(c => c.id === playCardId);
+        const cardIndex = hand.findIndex(c => c.id === playCardId);
         if (cardIndex === -1) {
           throw new Error('Selected card not in hand');
         }
-        const playedCard = currentHand[cardIndex];
+        const playedCard = hand[cardIndex];
         if (isCounterCard(playedCard.type)) {
           throw new Error('Cannot play counter card in action turn');
         }
+
+        const currentHand = [...hand];
         currentHand.splice(cardIndex, 1);
 
         room.players[playerId].handCount = currentHand.length;
         transaction.set(handRef, { cards: currentHand });
-        transaction.set(deckRef, { cards: deck });
 
         const newDiscard = [...discard, playedCard];
         transaction.set(discardRef, { cards: newDiscard });
@@ -138,6 +160,7 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
           gameState.interruptDeadline = Date.now() + room.settings.interruptTimeLimit * 1000;
           gameState.currentAction = {
             type: 'drawOnePlayOne',
+            step: 'play',
             cardId: playCardId,
             cardType: playedCard.type,
             playerId,
@@ -212,13 +235,8 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
               if (!gameState.victoryCards[targetPlayerId]) {
                 gameState.victoryCards[targetPlayerId] = [];
               }
-              gameState.victoryCards[targetPlayerId].push(sharedCard);
-            }
-          }
-
-          advanceTurn(room, gameState);
-        }
-      } else if (actionType === 'discardPlayTwo') {
+                    } else if (actionType === 'discardPlayTwo') {
+        const { targetPlayerIds } = req.body;
         if (!playedCardIds || playedCardIds.length < 1) {
           throw new Error('Must select a card to discard');
         }
@@ -267,12 +285,14 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
           gameState.phase = 'interrupt';
           gameState.interruptDeadline = Date.now() + room.settings.interruptTimeLimit * 1000;
           const sabotageCard = playedCards.find(c => ['Harassment', 'Accomplice', 'Barrage', 'QuagmireDrag'].includes(c.type))!;
+          const sabotageIdx = playedCards.indexOf(sabotageCard);
+          const currentTargetPlayerId = targetPlayerIds?.[sabotageIdx] || targetPlayerId;
           gameState.currentAction = {
             type: 'discardPlayTwo',
             cardId: sabotageCard.id,
             cardType: sabotageCard.type,
             playerId,
-            targetPlayerId
+            targetPlayerId: currentTargetPlayerId
           } as any;
           gameState.interruptStack = [];
         } else {
@@ -283,26 +303,29 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
             gameState.victoryCards[playerId] = [];
           }
 
-          for (const card of playedCards) {
+          for (let i = 0; i < playedCards.length; i++) {
+            const card = playedCards[i];
+            const currentTargetPlayerId = targetPlayerIds?.[i] || targetPlayerId;
+
             if (card.type === 'GainOne') {
               gameState.victoryCards[playerId].push({ type: 'PlusOne' });
             } else if (card.type === 'GainTwo') {
               gameState.victoryCards[playerId].push({ type: 'PlusOne' }, { type: 'PlusOne' });
             } else if (card.type === 'GainThree') {
               gameState.victoryCards[playerId].push({ type: 'PlusOne' }, { type: 'PlusOne' }, { type: 'PlusOne' });
-            } else if (card.type === 'Plunder' && targetPlayerId) {
-              const targetVictory = gameState.victoryCards[targetPlayerId] || [];
+            } else if (card.type === 'Plunder' && currentTargetPlayerId) {
+              const targetVictory = gameState.victoryCards[currentTargetPlayerId] || [];
               if (targetVictory.length > 0) {
                 const plunderCount = Math.min(2, targetVictory.length);
-                for (let i = 0; i < plunderCount; i++) {
+                for (let j = 0; j < plunderCount; j++) {
                   const randIdx = Math.floor(Math.random() * targetVictory.length);
                   const stolen = targetVictory.splice(randIdx, 1)[0];
                   gameState.victoryCards[playerId].push(stolen);
                 }
-                gameState.victoryCards[targetPlayerId] = targetVictory;
+                gameState.victoryCards[currentTargetPlayerId] = targetVictory;
               }
-            } else if (card.type === 'HandRaid' && targetPlayerId) {
-              const targetHandRef = roomRef.collection('hands').doc(targetPlayerId);
+            } else if (card.type === 'HandRaid' && currentTargetPlayerId) {
+              const targetHandRef = roomRef.collection('hands').doc(currentTargetPlayerId);
               const targetHandDoc = await transaction.get(targetHandRef);
               const targetHand = (targetHandDoc.exists ? targetHandDoc.data()?.cards : []) as ActionCard[];
               if (targetHand.length > 0) {
@@ -313,7 +336,7 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
                 room.players[playerId].handCount = currentHand.length;
                 transaction.set(handRef, { cards: currentHand });
 
-                room.players[targetPlayerId].handCount = targetHand.length;
+                room.players[currentTargetPlayerId].handCount = targetHand.length;
                 transaction.set(targetHandRef, { cards: targetHand });
               }
             } else if (card.type === 'CutDown') {
@@ -325,26 +348,33 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
                   gameState.victoryCards[pId] = pVictory;
                 }
               }
-            } else if (card.type === 'Share' && targetPlayerId) {
+            } else if (card.type === 'Share' && currentTargetPlayerId) {
               const myVictory = gameState.victoryCards[playerId] || [];
               if (myVictory.length > 0) {
                 const scoreMap = { MinusThree: -3, PlusOne: 1, PlusThree: 3, PlusFive: 5 };
                 let lowestIdx = 0;
                 let lowestVal = 9999;
-                for (let i = 0; i < myVictory.length; i++) {
-                  const val = scoreMap[myVictory[i].type as keyof typeof scoreMap] || 0;
+                for (let k = 0; k < myVictory.length; k++) {
+                  const val = scoreMap[myVictory[k].type as keyof typeof scoreMap] || 0;
                   if (val < lowestVal) {
                     lowestVal = val;
-                    lowestIdx = i;
+                    lowestIdx = k;
                   }
                 }
                 const sharedCard = myVictory.splice(lowestIdx, 1)[0];
                 gameState.victoryCards[playerId] = myVictory;
 
-                if (!gameState.victoryCards[targetPlayerId]) {
-                  gameState.victoryCards[targetPlayerId] = [];
+                if (!gameState.victoryCards[currentTargetPlayerId]) {
+                  gameState.victoryCards[currentTargetPlayerId] = [];
                 }
-                gameState.victoryCards[targetPlayerId].push(sharedCard);
+                gameState.victoryCards[currentTargetPlayerId].push(sharedCard);
+              }
+            }
+          }
+
+          advanceTurn(room, gameState);
+        }
+      } else if (actionType === 'pass') {ryCards[targetPlayerId].push(sharedCard);
               }
             }
           }

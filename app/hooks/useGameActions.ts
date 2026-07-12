@@ -35,10 +35,10 @@ export const useGameActions = (roomId: string) => {
     startGame: async () => {
       return fetchWithAuth(`${roomApiBase}/start`, { method: "POST" });
     },
-    executeTurn: async (actionType: string, playedCardIds?: string[], targetPlayerId?: string) => {
+    executeTurn: async (actionType: string, playedCardIds?: string[], targetPlayerId?: string, targetPlayerIds?: string[]) => {
       return fetchWithAuth(`${apiBase}/action`, {
         method: "POST",
-        body: JSON.stringify({ actionType, playedCardIds, targetPlayerId }),
+        body: JSON.stringify({ actionType, playedCardIds, targetPlayerId, targetPlayerIds }),
       });
     },
     playInterrupt: async (playedCardId: string, targetPlayerId?: string) => {

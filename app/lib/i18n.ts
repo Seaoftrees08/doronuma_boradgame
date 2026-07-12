@@ -36,7 +36,7 @@ export function getUiTranslation(locale: string = "ja") {
 export function getActionName(type: TurnActionType): string {
   switch (type) {
     case 'drawTwo': return '2枚引いて終了';
-    case 'drawOnePlayOne': return '1枚引いて1枚使う';
+    case 'drawOnePlayOne': return '行動カードを1枚引いた後、1枚使う';
     case 'discardPlayTwo': return '行動カードを1枚捨てて2枚まで使う';
     case 'pass': return 'パス（何もしない）';
     default: return '';

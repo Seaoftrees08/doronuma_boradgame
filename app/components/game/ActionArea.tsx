@@ -17,6 +17,9 @@ interface Props {
   discardCardId: string | null;
   setDiscardCardId: (id: string | null) => void;
   setSelectedCardIds: React.Dispatch<React.SetStateAction<string[]>>;
+  setSelectedTargetId: React.Dispatch<React.SetStateAction<string | null>>;
+  excludedCardIds: string[];
+  setExcludedCardIds: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 
@@ -30,16 +33,32 @@ export default function ActionArea({
   selectedTargetId,
   discardCardId,
   setDiscardCardId,
-  setSelectedCardIds
+  setSelectedCardIds,
+  setSelectedTargetId,
+  excludedCardIds,
+  setExcludedCardIds
 }: Props) {
   const actions = useGameActions(roomId);
   const [loading, setLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<TurnActionType | null>(null);
   const [tempDiscardCardId, setTempDiscardCardId] = useState<string | null>(null);
 
+  const [playStep, setPlayStep] = useState<1 | 2>(1);
+  const [playCardId1, setPlayCardId1] = useState<string | null>(null);
+  const [playTargetId1, setPlayTargetId1] = useState<string | null>(null);
+
+  const isDrawOnePlayOneActive = 
+    gameState.currentAction !== null && 
+    gameState.currentAction.type === 'drawOnePlayOne' && 
+    (gameState.currentAction as any).step === 'draw' &&
+    gameState.currentAction.playerId === player.playerId;
+
   useEffect(() => {
     if (discardCardId === null) {
       setTempDiscardCardId(null);
+      setPlayStep(1);
+      setPlayCardId1(null);
+      setPlayTargetId1(null);
     }
   }, [discardCardId]);
 
@@ -108,16 +127,38 @@ export default function ActionArea({
   const passStatus = checkPass();
 
   const handleConfirmAction = async () => {
-    if (!pendingAction) return;
+    if (!pendingAction && !isDrawOnePlayOneActive) return;
     setLoading(true);
     try {
-      const filteredSelectedCardIds = selectedCardIds.filter(id => id !== discardCardId);
-      const playedCardIds = pendingAction === 'discardPlayTwo'
-        ? [discardCardId!, ...filteredSelectedCardIds]
-        : selectedCardIds;
-      await actions.executeTurn(pendingAction, playedCardIds, selectedTargetId || undefined);
-      setPendingAction(null);
-      setDiscardCardId(null);
+      if (isDrawOnePlayOneActive) {
+        await actions.executeTurn('drawOnePlayOnePlay', selectedCardIds, selectedTargetId || undefined);
+        setSelectedCardIds([]);
+      } else if (pendingAction === 'discardPlayTwo') {
+        const playedCardIds: string[] = [discardCardId!];
+        const targetPlayerIds: string[] = [];
+
+        if (playCardId1) {
+          playedCardIds.push(playCardId1);
+          targetPlayerIds.push(playTargetId1 || '');
+        }
+        if (selectedCardIds[0]) {
+          playedCardIds.push(selectedCardIds[0]);
+          targetPlayerIds.push(selectedTargetId || '');
+        }
+
+        await actions.executeTurn('discardPlayTwo', playedCardIds, undefined, targetPlayerIds);
+        setPendingAction(null);
+        setDiscardCardId(null);
+        setPlayStep(1);
+        setPlayCardId1(null);
+        setPlayTargetId1(null);
+        setSelectedCardIds([]);
+        setExcludedCardIds([]);
+      } else {
+        await actions.executeTurn(pendingAction!, selectedCardIds, selectedTargetId || undefined);
+        setPendingAction(null);
+        setSelectedCardIds([]);
+      }
     } catch (e) {
       console.error(e);
       alert('アクションに失敗しました');
@@ -126,12 +167,20 @@ export default function ActionArea({
     }
   };
 
+  const checkCardAttack = (id: string) => {
+    const type = getCardType(id);
+    return ['Harassment', 'Barrage', 'Plunder', 'CutDown'].includes(type || '');
+  };
 
+  const checkCardCounter = (id: string) => {
+    const type = getCardType(id);
+    return ['Nullify', 'Deflect', 'DoubleBack', 'Repel'].includes(type || '');
+  };
 
   return (
     <div className="flex flex-col items-center w-full mt-6 bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/80 max-w-2xl mx-auto">
-      {pendingAction ? (
-        pendingAction === 'discardPlayTwo' && discardCardId === null ? (
+      {(pendingAction || isDrawOnePlayOneActive) ? (
+        (pendingAction === 'discardPlayTwo' && discardCardId === null) ? (
           /* discardPlayTwo: 捨てるカード選択UI */
           <div className="flex flex-col items-center space-y-4 py-4 w-full animate-fadeIn">
             <div className="text-zinc-400 text-sm font-bold tracking-wider uppercase">行動カードを1枚捨てて2枚まで使う</div>
@@ -205,15 +254,181 @@ export default function ActionArea({
               </button>
             </div>
           </div>
+        ) : pendingAction === 'discardPlayTwo' && discardCardId !== null ? (
+          /* discardPlayTwo: カード個別プレイ & 対象選択UI (ステップ式) */
+          <div className="flex flex-col items-center space-y-4 py-4 w-full animate-fadeIn">
+            {playStep === 1 ? (
+              /* ステップ1：1枚目のカードと対象の選択 */
+              <div className="flex flex-col items-center space-y-4 py-2 w-full">
+                <div className="text-zinc-400 text-sm font-bold tracking-wider uppercase">1枚目のプレイカード選択 (1/2)</div>
+                <div className="flex flex-col space-y-2 bg-zinc-800/80 p-4 rounded-lg border border-zinc-700/50 text-sm text-zinc-300 w-full max-w-sm">
+                  <div className="flex justify-between items-center pb-2 border-b border-zinc-700/40">
+                    <span>🗑️ 捨てるカード: <span className="font-bold text-white">{getCardI18n(getCardType(discardCardId)!).name}</span></span>
+                    <button
+                      onClick={() => {
+                        setDiscardCardId(null);
+                        setSelectedCardIds([]);
+                      }}
+                      className="text-xs text-red-400 hover:underline cursor-pointer"
+                    >
+                      [戻る]
+                    </button>
+                  </div>
+                  
+                  <div className="pt-1">
+                    1枚目に使うカード:{" "}
+                    {selectedCardIds.length === 0 ? (
+                      <span className="text-yellow-500 italic block mt-1 font-semibold">⚠️ 手札からカードを1枚クリックして選択してください（使わない場合は「使わない（スキップ）」を選択）</span>
+                    ) : (
+                      <span className="font-bold text-white">{getCardI18n(getCardType(selectedCardIds[0])!).name}</span>
+                    )}
+                  </div>
+
+                  {selectedCardIds.length > 0 && checkCardAttack(selectedCardIds[0]) && (
+                    <div className="pt-1">
+                      対象:{" "}
+                      {!selectedTargetId ? (
+                        <span className="text-red-400 italic block mt-1 font-semibold">⚠️ 相手リストから対象プレイヤーを選んでください</span>
+                      ) : (
+                        <span className="font-bold text-white">
+                          {gameState.turnOrder.find(id => id === selectedTargetId) ? gameState.turnOrder.indexOf(selectedTargetId) + 1 + "番目のプレイヤー" : "選択した相手"}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedCardIds.length > 0 && checkCardCounter(selectedCardIds[0]) && (
+                    <div className="text-xs text-red-400 font-bold">⚠️ 対抗カードは自分のターンに使用できません</div>
+                  )}
+                </div>
+
+                <div className="flex gap-4 w-full max-w-xs pt-2">
+                  <button
+                    onClick={() => {
+                      setPendingAction(null);
+                      setDiscardCardId(null);
+                      setSelectedCardIds([]);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-all cursor-pointer text-sm"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    disabled={
+                      selectedCardIds.length > 0 &&
+                      (checkCardCounter(selectedCardIds[0]) || (checkCardAttack(selectedCardIds[0]) && !selectedTargetId))
+                    }
+                    onClick={() => {
+                      if (selectedCardIds.length > 0) {
+                        setPlayCardId1(selectedCardIds[0]);
+                        setPlayTargetId1(selectedTargetId);
+                        setExcludedCardIds([selectedCardIds[0]]);
+                      } else {
+                        setPlayCardId1(null);
+                        setPlayTargetId1(null);
+                        setExcludedCardIds([]);
+                      }
+                      setSelectedCardIds([]);
+                      setSelectedTargetId(null);
+                      setPlayStep(2);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-red-600 hover:bg-red-700 text-white border-red-500 shadow-[0_0_12px_rgba(220,38,38,0.25)] cursor-pointer"
+                  >
+                    {selectedCardIds.length === 0 ? "使わない（スキップ）" : "次のカードへ"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* ステップ2：2枚目のカードと対象の選択（確定画面） */
+              <div className="flex flex-col items-center space-y-4 py-2 w-full">
+                <div className="text-zinc-400 text-sm font-bold tracking-wider uppercase">2枚目のプレイカード選択 (2/2)</div>
+                <div className="flex flex-col space-y-2 bg-zinc-800/80 p-4 rounded-lg border border-zinc-700/50 text-sm text-zinc-300 w-full max-w-sm">
+                  <div className="pb-2 border-b border-zinc-700/40">
+                    🗑️ 捨てるカード: <span className="font-bold text-white">{getCardI18n(getCardType(discardCardId)!).name}</span>
+                  </div>
+                  
+                  <div className="pb-2 border-b border-zinc-700/40">
+                    1枚目:{" "}
+                    {playCardId1 ? (
+                      <span className="font-bold text-white">
+                        {getCardI18n(getCardType(playCardId1)!).name}
+                        {playTargetId1 && ` (対象: ${gameState.turnOrder.indexOf(playTargetId1) + 1}番目のプレイヤー)`}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-500 italic">スキップ</span>
+                    )}
+                  </div>
+
+                  <div className="pt-1">
+                    2枚目に使うカード:{" "}
+                    {selectedCardIds.length === 0 ? (
+                      <span className="text-yellow-500 italic block mt-1 font-semibold">⚠️ 手札からカードを1枚クリックして選択してください（使わない場合は「使わない（スキップ）」を選択）</span>
+                    ) : (
+                      <span className="font-bold text-white">{getCardI18n(getCardType(selectedCardIds[0])!).name}</span>
+                    )}
+                  </div>
+
+                  {selectedCardIds.length > 0 && checkCardAttack(selectedCardIds[0]) && (
+                    <div className="pt-1">
+                      対象:{" "}
+                      {!selectedTargetId ? (
+                        <span className="text-red-400 italic block mt-1 font-semibold">⚠️ 相手リストから対象プレイヤーを選んでください</span>
+                      ) : (
+                        <span className="font-bold text-white">
+                          {gameState.turnOrder.find(id => id === selectedTargetId) ? gameState.turnOrder.indexOf(selectedTargetId) + 1 + "番目のプレイヤー" : "選択した相手"}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedCardIds.length > 0 && checkCardCounter(selectedCardIds[0]) && (
+                    <div className="text-xs text-red-400 font-bold">⚠️ 対抗カードは自分のターンに使用できません</div>
+                  )}
+                </div>
+
+                <div className="flex gap-4 w-full max-w-xs pt-2">
+                  <button
+                    onClick={() => {
+                      setPlayStep(1);
+                      setExcludedCardIds([]);
+                      setSelectedCardIds(playCardId1 ? [playCardId1] : []);
+                      setSelectedTargetId(playTargetId1);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-all cursor-pointer text-sm"
+                  >
+                    1枚目に戻る
+                  </button>
+                  <button
+                    disabled={
+                      loading ||
+                      (selectedCardIds.length > 0 &&
+                        (checkCardCounter(selectedCardIds[0]) || (checkCardAttack(selectedCardIds[0]) && !selectedTargetId)))
+                    }
+                    onClick={handleConfirmAction}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-red-600 hover:bg-red-700 text-white border-red-500 shadow-[0_0_12px_rgba(220,38,38,0.25)] cursor-pointer"
+                  >
+                    {loading ? "送信中..." : "確定する"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
-          /* 確定画面 */
+          /* drawOnePlayOne などの確定画面 */
           <div className="flex flex-col items-center space-y-4 py-4 w-full animate-fadeIn">
             <div className="text-zinc-400 text-sm font-bold tracking-wider uppercase">選択したアクション</div>
             <div className="text-2xl font-black text-red-500 tracking-wide">
-              {getActionName(pendingAction)}
+              {getActionName(pendingAction || 'drawOnePlayOne')}
             </div>
+
+            {isDrawOnePlayOneActive && (
+              <div className="text-xs text-yellow-500 font-semibold bg-yellow-950/20 px-3 py-1.5 rounded-lg border border-yellow-900/40">
+                ⚠️ カードをドローしたため、このアクションはキャンセルできません。カードを1枚選んで使用してください。
+              </div>
+            )
+            }
             
-            {pendingAction === 'drawOnePlayOne' && (
+            {(pendingAction === 'drawOnePlayOne' || isDrawOnePlayOneActive) && (
               selectedCardIds.length > 0 ? (
                 <div className="flex flex-col space-y-2 bg-zinc-800/80 p-4 rounded-lg border border-zinc-700/50 text-sm text-zinc-300 w-full max-w-sm">
                   <div>
@@ -243,59 +458,24 @@ export default function ActionArea({
               )
             )}
 
-            {pendingAction === 'discardPlayTwo' && discardCardId !== null && (
-              <div className="flex flex-col space-y-2 bg-zinc-800/80 p-4 rounded-lg border border-zinc-700/50 text-sm text-zinc-300 w-full max-w-sm">
-                <div className="flex justify-between items-center">
-                  <span>🗑️ 捨てるカード: <span className="font-bold text-white">{getCardI18n(getCardType(discardCardId)!).name}</span></span>
-                  <button
-                    onClick={() => {
-                      setDiscardCardId(null);
-                      setSelectedCardIds([]);
-                    }}
-                    className="text-xs text-red-400 hover:underline cursor-pointer"
-                  >
-                    [変更]
-                  </button>
-                </div>
-                <div>
-                  🃏 使うカード (最大2枚):{" "}
-                  {selectedCardIds.filter(id => id !== discardCardId).length === 0 ? (
-                    <span className="text-yellow-500 italic block mt-1 font-semibold">⚠️ 使うカードが選択されていません。手札から最大2枚クリックして選択してください。選択しない場合はカードを捨てるだけのターンになります。</span>
-                  ) : (
-                    <span className="font-bold text-white">
-                      {selectedCardIds.filter(id => id !== discardCardId).map(id => getCardI18n(getCardType(id)!).name).join(", ")}
-                    </span>
-                  )}
-                </div>
-                {selectedCardIds.filter(id => id !== discardCardId).length > 2 && (
-                  <div className="text-xs text-red-400 font-bold">⚠️ 使うカードは2枚までです（現在{selectedCardIds.filter(id => id !== discardCardId).length}枚選択中）</div>
-                )}
-                {hasCounterCard && (
-                  <div className="text-xs text-red-400 font-bold">⚠️ 対抗カードは自分のターンに使用できません</div>
-                )}
-                {isAttackCard && !selectedTargetId && (
-                  <div className="text-xs text-red-400 font-bold">⚠️ 対象プレイヤーを選んでください</div>
-                )}
-              </div>
-            )}
-
             <div className="flex gap-4 w-full max-w-xs pt-2">
               <button
-                disabled={loading}
+                disabled={loading || isDrawOnePlayOneActive}
                 onClick={() => {
                   setPendingAction(null);
                   setDiscardCardId(null);
                   setSelectedCardIds([]);
                 }}
-                className="flex-1 py-3 rounded-xl font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-all cursor-pointer"
+                className={`flex-1 py-3 rounded-xl font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-all ${
+                  isDrawOnePlayOneActive ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                }`}
               >
                 キャンセル
               </button>
               <button
                 disabled={
                   loading ||
-                  (pendingAction === 'discardPlayTwo' && (selectedCardIds.filter(id => id !== discardCardId).length > 2 || hasCounterCard || (isAttackCard && !selectedTargetId))) ||
-                  (pendingAction === 'drawOnePlayOne' && (!drawOnePlayOneStatus.valid || !drawOnePlayOneExecutionStatus.valid))
+                  ((pendingAction === 'drawOnePlayOne' || isDrawOnePlayOneActive) && !drawOnePlayOneExecutionStatus.valid)
                 }
                 onClick={handleConfirmAction}
                 className="flex-1 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white shadow-[0_0_15px_rgba(220,38,38,0.4)] transition-all cursor-pointer"
@@ -332,14 +512,24 @@ export default function ActionArea({
             <div className="flex flex-col items-center space-y-1">
               <button
                 disabled={loading || !drawOnePlayOneStatus.valid}
-                onClick={() => setPendingAction('drawOnePlayOne')}
+                onClick={async () => {
+                  setLoading(true);
+                  try {
+                    await actions.executeTurn('drawOnePlayOneDraw');
+                  } catch (e) {
+                    console.error(e);
+                    alert('カードのドローに失敗しました');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
                 className={`w-full py-3 px-4 rounded-xl font-bold transition-all border ${
                   drawOnePlayOneStatus.valid
                     ? 'bg-red-600 text-white hover:bg-red-700 hover:border-red-500 shadow-[0_0_12px_rgba(220,38,38,0.25)] cursor-pointer'
                     : 'bg-zinc-900/60 text-zinc-650 border-zinc-850 opacity-40 cursor-not-allowed'
                 }`}
               >
-                1枚引いて1枚使う
+                行動カードを1枚引いた後、1枚使う
               </button>
               {!drawOnePlayOneStatus.valid && (
                 <span className="text-[10px] text-zinc-500 font-bold text-center leading-tight">

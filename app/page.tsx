@@ -9,6 +9,7 @@ export default function Home() {
   const [roomId, setRoomId] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
   const router = useRouter();
   const { user, loading, error: authError } = useAuth();
 
@@ -144,7 +145,19 @@ export default function Home() {
                 type="text"
                 placeholder="合言葉 (ルームID)"
                 value={roomId}
-                onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (isComposing) {
+                    setRoomId(val);
+                  } else {
+                    setRoomId(val.toUpperCase());
+                  }
+                }}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={(e) => {
+                  setIsComposing(false);
+                  setRoomId(e.currentTarget.value.toUpperCase());
+                }}
                 required
                 className="w-full px-4 py-2 border rounded-md dark:bg-black dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-red-500"
               />

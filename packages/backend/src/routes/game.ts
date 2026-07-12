@@ -249,9 +249,21 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
           throw new Error('Cannot play more than 2 cards');
         }
 
+        // Filter out empty or invalid card IDs and align targetPlayerIds accordingly
+        const validPlayedCardIds: string[] = [playedCardIds[0]];
+        const validTargetPlayerIds: string[] = [];
+        const rawPlayCardIds = playedCardIds.slice(1);
+        for (let i = 0; i < rawPlayCardIds.length; i++) {
+          const cid = rawPlayCardIds[i];
+          if (cid && cid.trim() !== '') {
+            validPlayedCardIds.push(cid);
+            validTargetPlayerIds.push(targetPlayerIds?.[i] || '');
+          }
+        }
+
         let currentHand = [...hand];
         
-        const discardCardId = playedCardIds[0];
+        const discardCardId = validPlayedCardIds[0];
         const discardIdx = currentHand.findIndex(c => c.id === discardCardId);
         if (discardIdx === -1) {
           throw new Error('Discard card not in hand');
@@ -259,7 +271,7 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
         const discardedCard = currentHand[discardIdx];
         currentHand.splice(discardIdx, 1);
 
-        const playCardIds = playedCardIds.slice(1);
+        const playCardIds = validPlayedCardIds.slice(1);
         const playedCards: ActionCard[] = [];
         for (const cid of playCardIds) {
           const pIdx = currentHand.findIndex(c => c.id === cid);

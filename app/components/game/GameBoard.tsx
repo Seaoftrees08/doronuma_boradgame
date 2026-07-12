@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useGame } from "../../contexts/GameContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useHand } from "../../hooks/useHand";
+import { useGameActions } from "../../hooks/useGameActions";
 import PlayerHand from "./PlayerHand";
 import OpponentList from "./OpponentList";
 import ActionArea from "./ActionArea";
@@ -19,11 +20,13 @@ export default function GameBoard() {
   const room = roomState.room;
   const gameState = gameStateData.gameState;
   const { hand } = useHand(room?.roomId || "", user?.uid || "");
+  const actions = useGameActions(room?.roomId || "");
 
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [discardCardId, setDiscardCardId] = useState<string | null>(null);
   const [excludedCardIds, setExcludedCardIds] = useState<string[]>([]);
+  const [hasInterruptedOrSkipped, setHasInterruptedOrSkipped] = useState(false);
 
   // ターン/フェーズの変更で選択状態をリセット
   useEffect(() => {
@@ -31,6 +34,7 @@ export default function GameBoard() {
     setSelectedCardIds([]);
     setSelectedTargetId(null);
     setExcludedCardIds([]);
+    setHasInterruptedOrSkipped(false);
   }, [gameState?.currentTurnPlayerId, gameState?.phase]);
 
   // タイムアウト監視とバックエンド自動通知
@@ -86,9 +90,27 @@ export default function GameBoard() {
     setSelectedTargetId(prev => prev === playerId ? null : playerId);
   };
 
+  const handleInterrupt = async (cardId: string) => {
+    try {
+      await actions.playInterrupt(cardId);
+      setHasInterruptedOrSkipped(true);
+    } catch (error) {
+      console.error("Failed to play interrupt:", error);
+      alert("割り込みに失敗しました");
+    }
+  };
+
+  const handleInterruptSkip = () => {
+    setHasInterruptedOrSkipped(true);
+  };
+
   const currentPlayer = room.players[user?.uid || ""];
   const isMyTurn = gameState.currentTurnPlayerId === user?.uid;
   const canTarget = isMyTurn && selectedCardIds.length > 0;
+  const showInterruptOverlay = 
+    gameState.phase === 'interrupt' && 
+    gameState.currentAction?.playerId !== user?.uid && 
+    !hasInterruptedOrSkipped;
 
   return (
     <div className="flex flex-col flex-1 bg-black text-white relative overflow-hidden">
@@ -143,11 +165,13 @@ export default function GameBoard() {
 
       {/* Overlays */}
       <InterruptOverlay
-        currentCardType={gameState.currentAction && 'playedCards' in gameState.currentAction
-          ? (gameState.currentAction as any).playedCards?.[0]?.type || null
+        currentCardType={gameState.currentAction
+          ? (gameState.currentAction as any).cardType || null
           : null}
         playerHand={hand}
-        isActive={gameState.phase === 'interrupt'}
+        isActive={showInterruptOverlay}
+        onInterrupt={handleInterrupt}
+        onSkip={handleInterruptSkip}
       />
       <ResultScreen gameState={gameState} players={room.players} currentUserId={user?.uid} roomId={room.roomId} />
     </div>

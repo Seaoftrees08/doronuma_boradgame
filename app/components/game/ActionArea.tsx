@@ -137,11 +137,11 @@ export default function ActionArea({
         const playedCardIds: string[] = [discardCardId!];
         const targetPlayerIds: string[] = [];
 
-        if (playCardId1) {
+        if (playCardId1 && playCardId1.trim() !== '') {
           playedCardIds.push(playCardId1);
           targetPlayerIds.push(playTargetId1 || '');
         }
-        if (selectedCardIds[0]) {
+        if (selectedCardIds[0] && selectedCardIds[0].trim() !== '') {
           playedCardIds.push(selectedCardIds[0]);
           targetPlayerIds.push(selectedTargetId || '');
         }

@@ -62,5 +62,8 @@ export const useGameActions = (roomId: string) => {
     checkTimeout: async () => {
       return fetchWithAuth(`${apiBase}/check-timeout`, { method: "POST" });
     },
+    resign: async () => {
+      return fetchWithAuth(`${apiBase}/resign`, { method: "POST" });
+    },
   };
 };

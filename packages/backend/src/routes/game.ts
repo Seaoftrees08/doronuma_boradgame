@@ -4,6 +4,7 @@ import { deadlineCheckMiddleware } from '../middleware/deadlineCheck';
 import * as admin from 'firebase-admin';
 import { GameState, GameRoom, ActionCard, isCounterCard, GAME_CONSTANTS } from '@doronuma/shared';
 import { advanceTurn } from '../services/turnManager';
+import { triggerSuddenDeathEnd } from '../services/lastRoundManager';
 
 const router = Router();
 
@@ -488,6 +489,45 @@ router.post('/:roomId/discard', authenticate, async (req: AuthenticatedRequest, 
       transaction.set(handRef, { cards: remainingHand });
       transaction.set(discardRef, { cards: newDiscard });
       transaction.update(roomRef, { players: room.players });
+
+      return { success: true };
+    });
+
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+router.post('/:roomId/resign', authenticate, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { roomId } = req.params;
+    const playerId = req.user!.uid;
+
+    const db = admin.firestore();
+    const roomRef = db.collection('rooms').doc(roomId);
+    const stateRef = roomRef.collection('gameState').doc('state');
+
+    const result = await db.runTransaction(async (transaction) => {
+      const roomDoc = await transaction.get(roomRef);
+      if (!roomDoc.exists) throw new Error('Room not found');
+      const room = roomDoc.data() as GameRoom;
+
+      const stateDoc = await transaction.get(stateRef);
+      if (!stateDoc.exists) throw new Error('Game state not found');
+      const gameState = stateDoc.data() as GameState;
+
+      if (room.status !== 'playing' || gameState.phase !== 'playing') {
+        throw new Error('Game is not active');
+      }
+
+      const player = room.players[playerId];
+      if (!player) throw new Error('Player not in room');
+
+      player.consecutiveTimeouts = GAME_CONSTANTS.AFK_THRESHOLD;
+      player.status = 'afk';
+
+      await triggerSuddenDeathEnd(transaction, roomId, room, gameState, playerId, 'afk');
 
       return { success: true };
     });

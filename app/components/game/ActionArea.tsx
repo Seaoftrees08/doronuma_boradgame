@@ -387,6 +387,28 @@ export default function ActionArea({
             </div>
 
           </div>
+
+          <div className="flex justify-center pt-4 border-t border-zinc-800/40 w-full">
+            <button
+              disabled={loading}
+              onClick={async () => {
+                if (window.confirm("本当にリザイン（降参）しますか？\nゲームから退出となり、強制終了またはAI（スキップ）扱いになります。")) {
+                  setLoading(true);
+                  try {
+                    await actions.resign();
+                  } catch (e) {
+                    console.error(e);
+                    alert("リザインに失敗しました");
+                  } finally {
+                    setLoading(false);
+                  }
+                }
+              }}
+              className="px-4 py-2 text-xs font-bold text-red-400 hover:text-red-300 bg-red-950/20 hover:bg-red-950/40 border border-red-900/60 hover:border-red-800/80 rounded-lg transition-all cursor-pointer"
+            >
+              リザイン（降参）する
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -48,6 +48,10 @@ export default function ActionArea({
     ['Harassment', 'Barrage', 'Plunder', 'CutDown'].includes(type || '')
   );
 
+  const hasCounterCard = selectedCardsTypes.some(type =>
+    ['Nullify', 'Deflect', 'DoubleBack', 'Repel'].includes(type || '')
+  );
+
   // 実行可能性チェックとエラーメッセージの定義
   const checkDrawTwo = () => {
     if (!availableActions.drawTwo) return { valid: false, reason: "山札が2枚未満です" };
@@ -58,6 +62,7 @@ export default function ActionArea({
   const checkDrawOnePlayOne = () => {
     if (!availableActions.drawOnePlayOne) return { valid: false, reason: "山札がないか、手札がありません" };
     if (selectedCardsCount !== 1) return { valid: false, reason: "カードを1枚だけ選んでください" };
+    if (hasCounterCard) return { valid: false, reason: "対抗カードは自分のターンに使用できません" };
     if (isAttackCard && !selectedTargetId) return { valid: false, reason: "対象プレイヤーを選んでください" };
     return { valid: true };
   };
@@ -188,6 +193,9 @@ export default function ActionArea({
                 {selectedCardIds.length > 2 && (
                   <div className="text-xs text-red-400 font-bold">⚠️ 使うカードは2枚までです（現在{selectedCardIds.length}枚選択中）</div>
                 )}
+                {hasCounterCard && (
+                  <div className="text-xs text-red-400 font-bold">⚠️ 対抗カードは自分のターンに使用できません</div>
+                )}
                 {isAttackCard && !selectedTargetId && (
                   <div className="text-xs text-red-400 font-bold">⚠️ 対象プレイヤーを選んでください</div>
                 )}
@@ -209,7 +217,7 @@ export default function ActionArea({
               <button
                 disabled={
                   loading ||
-                  (pendingAction === 'discardPlayTwo' && (selectedCardIds.length > 2 || (isAttackCard && !selectedTargetId))) ||
+                  (pendingAction === 'discardPlayTwo' && (selectedCardIds.length > 2 || hasCounterCard || (isAttackCard && !selectedTargetId))) ||
                   (pendingAction === 'drawOnePlayOne' && !drawOnePlayOneStatus.valid)
                 }
                 onClick={handleConfirmAction}

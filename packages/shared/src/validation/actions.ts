@@ -58,3 +58,8 @@ export function canUseCounterCard(
   // 対抗カードは妨害系カードにのみ有効
   return COUNTER_CARDS.includes(counterCardType) && SABOTAGE_CARDS.includes(targetCardType);
 }
+
+export const isCounterCard = (cardType: CardType): boolean => {
+  return COUNTER_CARDS.includes(cardType);
+};
+

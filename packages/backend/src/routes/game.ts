@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { deadlineCheckMiddleware } from '../middleware/deadlineCheck';
 import * as admin from 'firebase-admin';
-import { GameState, GameRoom, ActionCard } from '@doronuma/shared';
+import { GameState, GameRoom, ActionCard, isCounterCard } from '@doronuma/shared';
 import { advanceTurn } from '../services/turnManager';
 
 const router = Router();
@@ -108,6 +108,9 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
           throw new Error('Selected card not in hand');
         }
         const playedCard = currentHand[cardIndex];
+        if (isCounterCard(playedCard.type)) {
+          throw new Error('Cannot play counter card in action turn');
+        }
         currentHand.splice(cardIndex, 1);
 
         room.players[playerId].handCount = currentHand.length;
@@ -233,7 +236,11 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
           if (pIdx === -1) {
             throw new Error('Played card not in hand');
           }
-          playedCards.push(currentHand[pIdx]);
+          const playedCard = currentHand[pIdx];
+          if (isCounterCard(playedCard.type)) {
+            throw new Error('Cannot play counter card in action turn');
+          }
+          playedCards.push(playedCard);
           currentHand.splice(pIdx, 1);
         }
 

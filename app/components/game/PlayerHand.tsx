@@ -33,7 +33,12 @@ export default function PlayerHand({ hand, onCardSelect, selectedCardIds, disabl
             `}
           >
             <button
-              onClick={() => onCardSelect?.(card.id)}
+              onClick={() => {
+                onCardSelect?.(card.id);
+                if (!isSelected && selectedCardIds.length === 0) {
+                  setDetailCardType(card.type);
+                }
+              }}
               disabled={disabled}
               title="クリックでカードを選択・説明を表示"
               className={`

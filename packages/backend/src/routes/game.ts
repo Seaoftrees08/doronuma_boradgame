@@ -209,8 +209,11 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
           advanceTurn(room, gameState);
         }
       } else if (actionType === 'discardPlayTwo') {
-        if (!playedCardIds || playedCardIds.length < 2) {
-          throw new Error('Must select a card to discard and at least one card to play');
+        if (!playedCardIds || playedCardIds.length < 1) {
+          throw new Error('Must select a card to discard');
+        }
+        if (playedCardIds.length > 3) {
+          throw new Error('Cannot play more than 2 cards');
         }
 
         let currentHand = [...hand];

@@ -22,6 +22,14 @@ export default function GameBoard() {
 
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+  const [discardCardId, setDiscardCardId] = useState<string | null>(null);
+
+  // ターン/フェーズの変更で選択状態をリセット
+  useEffect(() => {
+    setDiscardCardId(null);
+    setSelectedCardIds([]);
+    setSelectedTargetId(null);
+  }, [gameState?.currentTurnPlayerId, gameState?.phase]);
 
   // タイムアウト監視とバックエンド自動通知
   useEffect(() => {
@@ -112,11 +120,14 @@ export default function GameBoard() {
           hand={hand}
           selectedCardIds={selectedCardIds}
           selectedTargetId={selectedTargetId}
+          discardCardId={discardCardId}
+          setDiscardCardId={setDiscardCardId}
+          setSelectedCardIds={setSelectedCardIds}
         />
         
         <div className="mt-4">
           <PlayerHand 
-            hand={hand} 
+            hand={discardCardId ? hand.filter(c => c.id !== discardCardId) : hand} 
             onCardSelect={handleCardSelect} 
             selectedCardIds={selectedCardIds}
             disabled={gameState.phase === 'interrupt'}

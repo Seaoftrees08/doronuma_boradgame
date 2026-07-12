@@ -27,3 +27,8 @@ export function getCardI18n(cardType: CardType, locale: string = "ja"): CardI18n
     description: cardData.description,
   };
 }
+
+export function getUiTranslation(locale: string = "ja") {
+  const lang = translations[locale] || translations["ja"];
+  return lang.ui;
+}

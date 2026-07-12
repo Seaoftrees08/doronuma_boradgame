@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { deadlineCheckMiddleware } from '../middleware/deadlineCheck';
 import * as admin from 'firebase-admin';
-import { GameState, GameRoom, ActionCard, isCounterCard } from '@doronuma/shared';
+import { GameState, GameRoom, ActionCard, isCounterCard, GAME_CONSTANTS } from '@doronuma/shared';
 import { advanceTurn } from '../services/turnManager';
 
 const router = Router();
@@ -83,6 +83,9 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
       };
 
       if (actionType === 'drawTwo') {
+        if (hand.length >= GAME_CONSTANTS.MAX_HAND_SIZE) {
+          throw new Error('手札上限のためこのアクションは実行できません');
+        }
         const drawn = drawCards(2);
         const newHand = [...hand, ...drawn];
         room.players[playerId].handCount = newHand.length;

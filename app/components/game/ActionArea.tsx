@@ -1,7 +1,7 @@
 "use client";
 
 import { useGameActions } from "../../hooks/useGameActions";
-import { getAvailableActions, GameState, Player, ActionCard, TurnActionType } from "@doronuma/shared";
+import { getAvailableActions, GameState, Player, ActionCard, TurnActionType, GAME_CONSTANTS } from "@doronuma/shared";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { CARD_IMAGE_PATHS } from "../../lib/cardImages";
@@ -65,7 +65,12 @@ export default function ActionArea({
 
   // 実行可能性チェックとエラーメッセージの定義
   const checkDrawTwo = () => {
-    if (!availableActions.drawTwo) return { valid: false, reason: "山札が2枚未満です" };
+    if (!availableActions.drawTwo) {
+      if (hand.length >= GAME_CONSTANTS.MAX_HAND_SIZE) {
+        return { valid: false, reason: "手札が上限枚数(5枚)に達しているため使用できません" };
+      }
+      return { valid: false, reason: "山札が2枚未満です" };
+    }
     if (selectedCardsCount > 0) return { valid: false, reason: "カードの選択を解除してください" };
     return { valid: true };
   };

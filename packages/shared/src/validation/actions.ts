@@ -2,8 +2,8 @@ import { GAME_CONSTANTS, SYNTHESIS_TABLE } from '../constants/game';
 import { CardType, VictoryPointCard, VictoryCardType } from '../types/game';
 import { SABOTAGE_CARDS, COUNTER_CARDS } from '../constants/cards';
 
-export const canDrawTwo = (deckRemaining: number): boolean => {
-  return deckRemaining >= 2;
+export const canDrawTwo = (deckRemaining: number, handCount: number): boolean => {
+  return deckRemaining >= 2 && handCount < GAME_CONSTANTS.MAX_HAND_SIZE;
 };
 
 export const canDrawOnePlayOne = (deckRemaining: number, handCount: number): boolean => {
@@ -18,7 +18,7 @@ export const canDiscardPlayTwo = (handCount: number): boolean => {
 
 export const getAvailableActions = (deckRemaining: number, handCount: number) => {
   return {
-    drawTwo: canDrawTwo(deckRemaining),
+    drawTwo: canDrawTwo(deckRemaining, handCount),
     drawOnePlayOne: canDrawOnePlayOne(deckRemaining, handCount),
     discardPlayTwo: canDiscardPlayTwo(handCount),
     pass: true

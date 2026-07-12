@@ -83,7 +83,7 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
       };
 
       if (actionType === 'drawTwo') {
-        if (hand.length >= GAME_CONSTANTS.MAX_HAND_SIZE) {
+        if (hand.length > GAME_CONSTANTS.MAX_HAND_SIZE - 2) {
           throw new Error('手札上限のためこのアクションは実行できません');
         }
         const drawn = drawCards(2);

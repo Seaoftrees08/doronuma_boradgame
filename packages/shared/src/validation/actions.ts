@@ -3,7 +3,7 @@ import { CardType, VictoryPointCard, VictoryCardType } from '../types/game';
 import { SABOTAGE_CARDS, COUNTER_CARDS } from '../constants/cards';
 
 export const canDrawTwo = (deckRemaining: number, handCount: number): boolean => {
-  return deckRemaining >= 2 && handCount < GAME_CONSTANTS.MAX_HAND_SIZE;
+  return deckRemaining >= 2 && handCount <= GAME_CONSTANTS.MAX_HAND_SIZE - 2;
 };
 
 export const canDrawOnePlayOne = (deckRemaining: number, handCount: number): boolean => {

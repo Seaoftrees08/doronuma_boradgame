@@ -66,7 +66,7 @@ export default function ActionArea({
   // 実行可能性チェックとエラーメッセージの定義
   const checkDrawTwo = () => {
     if (!availableActions.drawTwo) {
-      if (hand.length >= GAME_CONSTANTS.MAX_HAND_SIZE) {
+      if (hand.length > GAME_CONSTANTS.MAX_HAND_SIZE - 2) {
         return { valid: false, reason: "手札が上限枚数(5枚)に達しているため使用できません" };
       }
       return { valid: false, reason: "山札が2枚未満です" };
@@ -82,6 +82,10 @@ export default function ActionArea({
       }
       return { valid: false, reason: "山札がないか、手札がありません" };
     }
+    return { valid: true };
+  };
+
+  const checkDrawOnePlayOneExecution = () => {
     if (selectedCardsCount !== 1) return { valid: false, reason: "カードを1枚だけ選んでください" };
     if (hasCounterCard) return { valid: false, reason: "対抗カードは自分のターンに使用できません" };
     if (isAttackCard && !selectedTargetId) return { valid: false, reason: "対象プレイヤーを選んでください" };
@@ -96,6 +100,7 @@ export default function ActionArea({
 
   const drawTwoStatus = checkDrawTwo();
   const drawOnePlayOneStatus = checkDrawOnePlayOne();
+  const drawOnePlayOneExecutionStatus = checkDrawOnePlayOneExecution();
   const discardPlayTwoStatus = {
     valid: availableActions.discardPlayTwo,
     reason: !availableActions.discardPlayTwo ? "手札が2枚以上必要です" : ""
@@ -207,18 +212,34 @@ export default function ActionArea({
               {getActionName(pendingAction)}
             </div>
             
-            {pendingAction === 'drawOnePlayOne' && selectedCardIds.length > 0 && (
-              <div className="text-zinc-300 text-sm bg-zinc-800/80 px-3 py-1.5 rounded-lg border border-zinc-700/50">
-                使用するカード: <span className="font-bold text-white">{getCardI18n(getCardType(selectedCardIds[0])!).name}</span>
-                {selectedTargetId && (
-                  <>
-                    {" → 対象: "}
-                    <span className="font-bold text-white">
-                      {gameState.turnOrder.find(id => id === selectedTargetId) ? gameState.turnOrder.indexOf(selectedTargetId) + 1 + "番目のプレイヤー" : "選択した相手"}
-                    </span>
-                  </>
-                )}
-              </div>
+            {pendingAction === 'drawOnePlayOne' && (
+              selectedCardIds.length > 0 ? (
+                <div className="flex flex-col space-y-2 bg-zinc-800/80 p-4 rounded-lg border border-zinc-700/50 text-sm text-zinc-300 w-full max-w-sm">
+                  <div>
+                    使用するカード: <span className="font-bold text-white">{getCardI18n(getCardType(selectedCardIds[0])!).name}</span>
+                  </div>
+                  {selectedTargetId && (
+                    <div>
+                      対象: <span className="font-bold text-white">
+                        {gameState.turnOrder.find(id => id === selectedTargetId) ? gameState.turnOrder.indexOf(selectedTargetId) + 1 + "番目のプレイヤー" : "選択した相手"}
+                      </span>
+                    </div>
+                  )}
+                  {selectedCardIds.length > 1 && (
+                    <div className="text-xs text-red-400 font-bold">⚠️ 使うカードは1枚だけ選んでください</div>
+                  )}
+                  {hasCounterCard && (
+                    <div className="text-xs text-red-400 font-bold">⚠️ 対抗カードは自分のターンに使用できません</div>
+                  )}
+                  {isAttackCard && !selectedTargetId && (
+                    <div className="text-xs text-red-400 font-bold">⚠️ 対象プレイヤーを選んでください</div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-sm text-yellow-400 font-bold bg-zinc-850/80 px-4 py-3 rounded-lg border border-yellow-700/30 w-full max-w-sm text-center">
+                  ⚠️ 使用するカードを手札から1枚選んでください
+                </div>
+              )
             )}
 
             {pendingAction === 'discardPlayTwo' && discardCardId !== null && (
@@ -273,7 +294,7 @@ export default function ActionArea({
                 disabled={
                   loading ||
                   (pendingAction === 'discardPlayTwo' && (selectedCardIds.length > 2 || hasCounterCard || (isAttackCard && !selectedTargetId))) ||
-                  (pendingAction === 'drawOnePlayOne' && !drawOnePlayOneStatus.valid)
+                  (pendingAction === 'drawOnePlayOne' && (!drawOnePlayOneStatus.valid || !drawOnePlayOneExecutionStatus.valid))
                 }
                 onClick={handleConfirmAction}
                 className="flex-1 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white shadow-[0_0_15px_rgba(220,38,38,0.4)] transition-all cursor-pointer"

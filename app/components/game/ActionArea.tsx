@@ -111,8 +111,9 @@ export default function ActionArea({
     if (!pendingAction) return;
     setLoading(true);
     try {
+      const filteredSelectedCardIds = selectedCardIds.filter(id => id !== discardCardId);
       const playedCardIds = pendingAction === 'discardPlayTwo'
-        ? [discardCardId!, ...selectedCardIds]
+        ? [discardCardId!, ...filteredSelectedCardIds]
         : selectedCardIds;
       await actions.executeTurn(pendingAction, playedCardIds, selectedTargetId || undefined);
       setPendingAction(null);
@@ -258,16 +259,16 @@ export default function ActionArea({
                 </div>
                 <div>
                   🃏 使うカード (最大2枚):{" "}
-                  {selectedCardIds.length === 0 ? (
-                    <span className="text-zinc-500 italic">なし（捨てるだけ）</span>
+                  {selectedCardIds.filter(id => id !== discardCardId).length === 0 ? (
+                    <span className="text-yellow-500 italic block mt-1 font-semibold">⚠️ 使うカードが選択されていません。手札から最大2枚クリックして選択してください。選択しない場合はカードを捨てるだけのターンになります。</span>
                   ) : (
                     <span className="font-bold text-white">
-                      {selectedCardIds.map(id => getCardI18n(getCardType(id)!).name).join(", ")}
+                      {selectedCardIds.filter(id => id !== discardCardId).map(id => getCardI18n(getCardType(id)!).name).join(", ")}
                     </span>
                   )}
                 </div>
-                {selectedCardIds.length > 2 && (
-                  <div className="text-xs text-red-400 font-bold">⚠️ 使うカードは2枚までです（現在{selectedCardIds.length}枚選択中）</div>
+                {selectedCardIds.filter(id => id !== discardCardId).length > 2 && (
+                  <div className="text-xs text-red-400 font-bold">⚠️ 使うカードは2枚までです（現在{selectedCardIds.filter(id => id !== discardCardId).length}枚選択中）</div>
                 )}
                 {hasCounterCard && (
                   <div className="text-xs text-red-400 font-bold">⚠️ 対抗カードは自分のターンに使用できません</div>
@@ -293,7 +294,7 @@ export default function ActionArea({
               <button
                 disabled={
                   loading ||
-                  (pendingAction === 'discardPlayTwo' && (selectedCardIds.length > 2 || hasCounterCard || (isAttackCard && !selectedTargetId))) ||
+                  (pendingAction === 'discardPlayTwo' && (selectedCardIds.filter(id => id !== discardCardId).length > 2 || hasCounterCard || (isAttackCard && !selectedTargetId))) ||
                   (pendingAction === 'drawOnePlayOne' && (!drawOnePlayOneStatus.valid || !drawOnePlayOneExecutionStatus.valid))
                 }
                 onClick={handleConfirmAction}

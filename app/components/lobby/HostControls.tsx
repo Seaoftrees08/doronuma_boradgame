@@ -33,6 +33,18 @@ export default function HostControls({ roomId, room }: Props) {
     }
   };
 
+  const handleDeleteRoom = async () => {
+    if (!window.confirm("本当にルームを削除しますか？\n参加しているすべてのプレイヤーが退出します。")) return;
+    setLoading(true);
+    try {
+      await actions.deleteRoom();
+    } catch (error) {
+      console.error(error);
+      alert("ルームの削除に失敗しました");
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex gap-4">
@@ -72,6 +84,16 @@ export default function HostControls({ roomId, room }: Props) {
           />
         </div>
       )}
+
+      <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-center">
+        <button
+          onClick={handleDeleteRoom}
+          disabled={loading}
+          className="py-2 px-4 bg-red-100 hover:bg-red-200 dark:bg-red-950/20 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 font-bold rounded-lg border border-red-200 dark:border-red-900/60 transition-colors text-sm cursor-pointer"
+        >
+          ルームを削除する
+        </button>
+      </div>
     </div>
   );
 }

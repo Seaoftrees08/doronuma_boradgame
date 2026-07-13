@@ -75,7 +75,7 @@ export default function ActionArea({
   // Calculate isAttackCard based on selected cards to play
   const selectedCardsTypes = selectedCardIds.map(id => getCardType(id));
   const isAttackCard = selectedCardsTypes.some(type =>
-    ['Harassment', 'Barrage', 'Plunder', 'CutDown'].includes(type || '')
+    ['Harassment', 'Barrage', 'QuagmireDrag', 'Plunder', 'HandRaid', 'Share'].includes(type || '')
   );
 
   const hasCounterCard = selectedCardsTypes.some(type =>
@@ -136,13 +136,41 @@ export default function ActionArea({
       } else if (pendingAction === 'discardPlayTwo') {
         const playedCardIds: string[] = [discardCardId!];
         const targetPlayerIds: string[] = [];
+        // 選択されたカードが実際に手札にあるかチェック
+        const handCardIds = hand.map(c => c.id);
+        if (discardCardId && !handCardIds.includes(discardCardId)) {
+          alert('捨てるカードが手札に存在しません');
+          setLoading(false);
+          return;
+        }
 
         if (playCardId1 && playCardId1.trim() !== '') {
+          if (playCardId1 === discardCardId) {
+            alert('捨てるカードと使うカードが同じです');
+            setLoading(false);
+            return;
+          }
+          if (!handCardIds.includes(playCardId1)) {
+            alert('1枚目に使うカードが手札に存在しません');
+            setLoading(false);
+            return;
+          }
           playedCardIds.push(playCardId1);
           targetPlayerIds.push(playTargetId1 || '');
         }
-        if (selectedCardIds[0] && selectedCardIds[0].trim() !== '') {
-          playedCardIds.push(selectedCardIds[0]);
+        const secondPlayCardId = selectedCardIds[0];
+        if (secondPlayCardId && secondPlayCardId.trim() !== '') {
+          if (secondPlayCardId === discardCardId || secondPlayCardId === playCardId1) {
+            alert('同じカードを複数回指定することはできません');
+            setLoading(false);
+            return;
+          }
+          if (!handCardIds.includes(secondPlayCardId)) {
+            alert('2枚目に使うカードが手札に存在しません');
+            setLoading(false);
+            return;
+          }
+          playedCardIds.push(secondPlayCardId);
           targetPlayerIds.push(selectedTargetId || '');
         }
 
@@ -169,7 +197,7 @@ export default function ActionArea({
 
   const checkCardAttack = (id: string) => {
     const type = getCardType(id);
-    return ['Harassment', 'Barrage', 'Plunder', 'CutDown'].includes(type || '');
+    return ['Harassment', 'Barrage', 'QuagmireDrag', 'Plunder', 'HandRaid', 'Share'].includes(type || '');
   };
 
   const checkCardCounter = (id: string) => {
@@ -278,7 +306,7 @@ export default function ActionArea({
                   <div className="pt-1">
                     1枚目に使うカード:{" "}
                     {selectedCardIds.length === 0 ? (
-                      <span className="text-yellow-500 italic block mt-1 font-semibold">⚠️ 手札からカードを1枚クリックして選択してください（使わない場合は「使わない（スキップ）」を選択）</span>
+                      <span className="text-yellow-500 italic block mt-1 font-semibold">⚠️ 手札からカードを1枚クリックして選択してください（使わない場合はカードを未選択の状態で「使わない（スキップ）」を選択）</span>
                     ) : (
                       <span className="font-bold text-white">{getCardI18n(getCardType(selectedCardIds[0])!).name}</span>
                     )}
@@ -362,7 +390,7 @@ export default function ActionArea({
                   <div className="pt-1">
                     2枚目に使うカード:{" "}
                     {selectedCardIds.length === 0 ? (
-                      <span className="text-yellow-500 italic block mt-1 font-semibold">⚠️ 手札からカードを1枚クリックして選択してください（使わない場合は「使わない（スキップ）」を選択）</span>
+                      <span className="text-yellow-500 italic block mt-1 font-semibold">⚠️ 手札からカードを1枚クリックして選択してください（使わない場合はカードを未選択の状態で「確定する」を選択）</span>
                     ) : (
                       <span className="font-bold text-white">{getCardI18n(getCardType(selectedCardIds[0])!).name}</span>
                     )}

@@ -51,16 +51,7 @@ export default function GameBoard() {
       const now = Date.now();
       if (now >= deadline) {
         try {
-          const response = await fetch(`/api/games/${room.roomId}/check-timeout`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${await user?.getIdToken()}`
-            }
-          });
-          if (!response.ok) {
-            console.error("Timeout check failed");
-          }
+          await actions.checkTimeout();
         } catch (error) {
           console.error("Error invoking timeout check:", error);
         }
@@ -82,7 +73,7 @@ export default function GameBoard() {
       if (prev.includes(cardId)) {
         return prev.filter(id => id !== cardId);
       }
-      return [...prev, cardId];
+      return [cardId];
     });
   };
 
@@ -100,8 +91,13 @@ export default function GameBoard() {
     }
   };
 
-  const handleInterruptSkip = () => {
+  const handleInterruptSkip = async () => {
     setHasInterruptedOrSkipped(true);
+    try {
+      await actions.skipInterrupt();
+    } catch (error) {
+      console.error("Failed to skip interrupt:", error);
+    }
   };
 
   const currentPlayer = room.players[user?.uid || ""];
@@ -129,28 +125,35 @@ export default function GameBoard() {
         />
       </div>
 
-      {/* Middle Section: Board / Turn Info */}
-      <div className="flex-1 flex flex-col justify-center items-center p-4 relative">
-        <TurnIndicator gameState={gameState} players={room.players} currentUserId={user?.uid} />
-        <DeckArea deckRemaining={gameState.deckRemaining} discardCount={gameState.discardCount} />
-      </div>
-
       {/* Bottom Section: My Hand & Actions */}
-      <div className="p-4 border-t border-zinc-800 bg-black/80 backdrop-blur z-20">
-        <ActionArea 
-          roomId={room.roomId}
-          gameState={gameState}
-          player={currentPlayer}
-          hand={hand}
-          selectedCardIds={selectedCardIds}
-          selectedTargetId={selectedTargetId}
-          discardCardId={discardCardId}
-          setDiscardCardId={setDiscardCardId}
-          setSelectedCardIds={setSelectedCardIds}
-          setSelectedTargetId={setSelectedTargetId}
-          excludedCardIds={excludedCardIds}
-          setExcludedCardIds={setExcludedCardIds}
-        />
+      <div className="p-4 border-t border-zinc-800 bg-black/80 backdrop-blur z-20 flex-1 flex flex-col justify-between overflow-y-auto">
+        {/* Horizontal Row: Turn Info, Deck/Discard, Actions */}
+        <div className="flex flex-col lg:flex-row gap-4 items-center justify-between w-full">
+          <div className="w-full lg:w-1/3 flex justify-center">
+            <TurnIndicator gameState={gameState} players={room.players} currentUserId={user?.uid} />
+          </div>
+          <div className="hidden lg:block w-px bg-zinc-800 self-stretch" />
+          <div className="w-full lg:w-1/3 flex justify-center">
+            <DeckArea deckRemaining={gameState.deckRemaining} discardCount={gameState.discardCount} />
+          </div>
+          <div className="hidden lg:block w-px bg-zinc-800 self-stretch" />
+          <div className="w-full lg:w-1/3 flex justify-center">
+            <ActionArea 
+              roomId={room.roomId}
+              gameState={gameState}
+              player={currentPlayer}
+              hand={hand}
+              selectedCardIds={selectedCardIds}
+              selectedTargetId={selectedTargetId}
+              discardCardId={discardCardId}
+              setDiscardCardId={setDiscardCardId}
+              setSelectedCardIds={setSelectedCardIds}
+              setSelectedTargetId={setSelectedTargetId}
+              excludedCardIds={excludedCardIds}
+              setExcludedCardIds={setExcludedCardIds}
+            />
+          </div>
+        </div>
         
         <div className="mt-4">
           <PlayerHand 

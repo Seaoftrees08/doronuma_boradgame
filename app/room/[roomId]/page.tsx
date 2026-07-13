@@ -16,7 +16,7 @@ export default function LobbyPage({ params }: { params: Promise<{ roomId: string
 
   useEffect(() => {
     if (!roomLoading) {
-      if (error || !room) {
+      if (error || !room || room.status === "deleted") {
         router.replace("/");
       } else if (room.status === "playing") {
         router.push(`/room/${roomId}/play`);

@@ -13,6 +13,15 @@ interface Props {
 }
 
 export function InterruptOverlay({ currentCardType, playerHand, isActive, onInterrupt, onSkip }: Props) {
+  React.useEffect(() => {
+    if (isActive && currentCardType && SABOTAGE_CARDS.includes(currentCardType)) {
+      const counterCards = playerHand.filter(card => COUNTER_CARDS.includes(card.type));
+      if (counterCards.length === 0) {
+        onSkip?.();
+      }
+    }
+  }, [isActive, currentCardType, playerHand, onSkip]);
+
   if (!isActive || !currentCardType) return null;
 
   const isSabotage = SABOTAGE_CARDS.includes(currentCardType);

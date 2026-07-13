@@ -165,4 +165,27 @@ router.post('/:roomId/start', authenticate, async (req: AuthenticatedRequest, re
   }
 });
 
+// ルームの削除（ホストのみ）
+router.delete('/:roomId', authenticate, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { roomId } = req.params;
+    const playerId = req.user!.uid;
+
+    const roomRef = db.collection('rooms').doc(roomId);
+    await db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(roomRef);
+      if (!doc.exists) throw new Error('Room not found');
+
+      const room = doc.data() as GameRoom;
+      if (room.hostId !== playerId) throw new Error('Only host can delete the room');
+
+      transaction.update(roomRef, { status: 'deleted' });
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
 export default router;

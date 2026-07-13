@@ -47,6 +47,11 @@ export const useGameActions = (roomId: string) => {
         body: JSON.stringify({ playedCardId, targetPlayerId }),
       });
     },
+    skipInterrupt: async () => {
+      return fetchWithAuth(`${apiBase}/interrupt-skip`, {
+        method: "POST",
+      });
+    },
     selectTarget: async (targetPlayerId: string) => {
       return fetchWithAuth(`${apiBase}/select-target`, {
         method: "POST",
@@ -64,6 +69,9 @@ export const useGameActions = (roomId: string) => {
     },
     resign: async () => {
       return fetchWithAuth(`${apiBase}/resign`, { method: "POST" });
+    },
+    deleteRoom: async () => {
+      return fetchWithAuth(roomApiBase, { method: "DELETE" });
     },
   };
 };

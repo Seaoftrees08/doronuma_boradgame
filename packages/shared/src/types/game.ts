@@ -44,7 +44,7 @@ export interface Player {
 export interface GameRoom {
   roomId: string;
   hostId: string;
-  status: "lobby" | "playing" | "finished";
+  status: "lobby" | "playing" | "finished" | "deleted";
   settings: GameSettings;
   createdAt: number;
   players: Record<string, Player>;
@@ -69,6 +69,7 @@ export interface GameState {
   interruptStack: InterruptAction[];
   synthesisPhase: boolean;
   victoryCards: Record<string, VictoryPointCard[]>;
+  interruptSkippedPlayers?: string[];
 }
 
 export type TurnAction =

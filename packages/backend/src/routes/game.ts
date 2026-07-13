@@ -5,6 +5,7 @@ import * as admin from 'firebase-admin';
 import { GameState, GameRoom, ActionCard, isCounterCard, GAME_CONSTANTS } from '@doronuma/shared';
 import { advanceTurn } from '../services/turnManager';
 import { triggerSuddenDeathEnd } from '../services/lastRoundManager';
+import { resolveInterrupts } from '../services/interruptManager';
 
 const router = Router();
 
@@ -164,7 +165,7 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
             cardId: playCardId,
             cardType: playedCard.type,
             playerId,
-            targetPlayerId
+            targetPlayerId: targetPlayerId ?? null
           } as any;
           gameState.interruptStack = [];
         } else {
@@ -303,7 +304,7 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
           gameState.interruptDeadline = Date.now() + room.settings.interruptTimeLimit * 1000;
           const sabotageCard = playedCards.find(c => ['Harassment', 'Accomplice', 'Barrage', 'QuagmireDrag'].includes(c.type))!;
           const sabotageIdx = playedCards.indexOf(sabotageCard);
-          const currentTargetPlayerId = targetPlayerIds?.[sabotageIdx] || targetPlayerId;
+          const currentTargetPlayerId = validTargetPlayerIds[sabotageIdx] ?? targetPlayerId ?? null;
           gameState.currentAction = {
             type: 'discardPlayTwo',
             cardId: sabotageCard.id,
@@ -322,7 +323,7 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
 
           for (let i = 0; i < playedCards.length; i++) {
             const card = playedCards[i];
-            const currentTargetPlayerId = targetPlayerIds?.[i] || targetPlayerId;
+            const currentTargetPlayerId = validTargetPlayerIds[i] ?? targetPlayerId ?? null;
 
             if (card.type === 'GainOne') {
               gameState.victoryCards[playerId].push({ type: 'PlusOne' });
@@ -330,7 +331,7 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
               gameState.victoryCards[playerId].push({ type: 'PlusOne' }, { type: 'PlusOne' });
             } else if (card.type === 'GainThree') {
               gameState.victoryCards[playerId].push({ type: 'PlusOne' }, { type: 'PlusOne' }, { type: 'PlusOne' });
-            } else if (card.type === 'Plunder' && currentTargetPlayerId) {
+            } else if (card.type === 'Plunder' && currentTargetPlayerId && currentTargetPlayerId.trim() !== '') {
               const targetVictory = gameState.victoryCards[currentTargetPlayerId] || [];
               if (targetVictory.length > 0) {
                 const plunderCount = Math.min(2, targetVictory.length);
@@ -341,7 +342,7 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
                 }
                 gameState.victoryCards[currentTargetPlayerId] = targetVictory;
               }
-            } else if (card.type === 'HandRaid' && currentTargetPlayerId) {
+            } else if (card.type === 'HandRaid' && currentTargetPlayerId && currentTargetPlayerId.trim() !== '') {
               const targetHandRef = roomRef.collection('hands').doc(currentTargetPlayerId);
               const targetHandDoc = await transaction.get(targetHandRef);
               const targetHand = (targetHandDoc.exists ? targetHandDoc.data()?.cards : []) as ActionCard[];
@@ -365,7 +366,7 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
                   gameState.victoryCards[pId] = pVictory;
                 }
               }
-            } else if (card.type === 'Share' && currentTargetPlayerId) {
+            } else if (card.type === 'Share' && currentTargetPlayerId && currentTargetPlayerId.trim() !== '') {
               const myVictory = gameState.victoryCards[playerId] || [];
               if (myVictory.length > 0) {
                 const scoreMap = { MinusThree: -3, PlusOne: 1, PlusThree: 3, PlusFive: 5 };
@@ -476,6 +477,7 @@ router.post('/:roomId/interrupt', authenticate, async (req: AuthenticatedRequest
 
       // Reset timer
       gameState.interruptDeadline = Date.now() + room.settings.interruptTimeLimit * 1000;
+      gameState.interruptSkippedPlayers = [];
 
       transaction.set(handRef, { cards: hand });
       transaction.set(discardRef, { cards: newDiscard });
@@ -483,6 +485,65 @@ router.post('/:roomId/interrupt', authenticate, async (req: AuthenticatedRequest
       transaction.update(stateRef, { ...gameState });
 
       return { success: true };
+    });
+
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+router.post('/:roomId/interrupt-skip', authenticate, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { roomId } = req.params;
+    const playerId = req.user!.uid;
+
+    const db = admin.firestore();
+    const roomRef = db.collection('rooms').doc(roomId);
+    const stateRef = roomRef.collection('gameState').doc('state');
+
+    const result = await db.runTransaction(async (transaction) => {
+      const roomDoc = await transaction.get(roomRef);
+      if (!roomDoc.exists) throw new Error('Room not found');
+      const room = roomDoc.data() as GameRoom;
+
+      const stateDoc = await transaction.get(stateRef);
+      if (!stateDoc.exists) throw new Error('Game state not found');
+      const gameState = stateDoc.data() as GameState;
+
+      if (gameState.phase !== 'interrupt') {
+        throw new Error('Not in interrupt phase');
+      }
+
+      if (!gameState.interruptSkippedPlayers) {
+        gameState.interruptSkippedPlayers = [];
+      }
+
+      if (!gameState.interruptSkippedPlayers.includes(playerId)) {
+        gameState.interruptSkippedPlayers.push(playerId);
+      }
+
+      const playingPlayerIds = Object.keys(room.players).filter(
+        (pId) => room.players[pId].status === 'playing'
+      );
+
+      // Check if everyone has skipped
+      const allSkipped = playingPlayerIds.every((pId) =>
+        gameState.interruptSkippedPlayers?.includes(pId)
+      );
+
+      if (allSkipped) {
+        resolveInterrupts(gameState);
+        gameState.phase = 'playing';
+        gameState.interruptDeadline = null;
+        gameState.interruptSkippedPlayers = [];
+        advanceTurn(room, gameState);
+      }
+
+      transaction.update(roomRef, { players: room.players });
+      transaction.update(stateRef, { ...gameState });
+
+      return { success: true, allSkipped };
     });
 
     res.json(result);

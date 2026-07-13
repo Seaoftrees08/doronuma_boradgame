@@ -297,99 +297,114 @@ router.post('/:roomId/action', authenticate, async (req: AuthenticatedRequest, r
           gameState.actionCountPerPlayer[playerId] += 1;
         }
 
-        const hasSabotage = playedCards.some(c => ['Harassment', 'Accomplice', 'Barrage', 'QuagmireDrag'].includes(c.type));
+        const sabotageCards: ActionCard[] = [];
+        const sabotageTargetPlayerIds: (string | null)[] = [];
+        const nonSabotageCards: ActionCard[] = [];
+        const nonSabotageTargetPlayerIds: (string | null)[] = [];
 
-        if (hasSabotage) {
+        for (let i = 0; i < playedCards.length; i++) {
+          const card = playedCards[i];
+          const currentTargetPlayerId = validTargetPlayerIds[i] ?? targetPlayerId ?? null;
+          if (['Harassment', 'Accomplice', 'Barrage', 'QuagmireDrag'].includes(card.type)) {
+            sabotageCards.push(card);
+            sabotageTargetPlayerIds.push(currentTargetPlayerId);
+          } else {
+            nonSabotageCards.push(card);
+            nonSabotageTargetPlayerIds.push(currentTargetPlayerId);
+          }
+        }
+
+        if (!gameState.victoryCards) {
+          gameState.victoryCards = {};
+        }
+        if (!gameState.victoryCards[playerId]) {
+          gameState.victoryCards[playerId] = [];
+        }
+
+        for (let i = 0; i < nonSabotageCards.length; i++) {
+          const card = nonSabotageCards[i];
+          const currentTargetPlayerId = nonSabotageTargetPlayerIds[i];
+
+          if (card.type === 'GainOne') {
+            gameState.victoryCards[playerId].push({ type: 'PlusOne' });
+          } else if (card.type === 'GainTwo') {
+            gameState.victoryCards[playerId].push({ type: 'PlusOne' }, { type: 'PlusOne' });
+          } else if (card.type === 'GainThree') {
+            gameState.victoryCards[playerId].push({ type: 'PlusOne' }, { type: 'PlusOne' }, { type: 'PlusOne' });
+          } else if (card.type === 'Plunder' && currentTargetPlayerId && currentTargetPlayerId.trim() !== '') {
+            const targetVictory = gameState.victoryCards[currentTargetPlayerId] || [];
+            if (targetVictory.length > 0) {
+              const plunderCount = Math.min(2, targetVictory.length);
+              for (let j = 0; j < plunderCount; j++) {
+                const randIdx = Math.floor(Math.random() * targetVictory.length);
+                const stolen = targetVictory.splice(randIdx, 1)[0];
+                gameState.victoryCards[playerId].push(stolen);
+              }
+              gameState.victoryCards[currentTargetPlayerId] = targetVictory;
+            }
+          } else if (card.type === 'HandRaid' && currentTargetPlayerId && currentTargetPlayerId.trim() !== '') {
+            const targetHandRef = roomRef.collection('hands').doc(currentTargetPlayerId);
+            const targetHandDoc = await transaction.get(targetHandRef);
+            const targetHand = (targetHandDoc.exists ? targetHandDoc.data()?.cards : []) as ActionCard[];
+            if (targetHand.length > 0) {
+              const randIdx = Math.floor(Math.random() * targetHand.length);
+              const stolenCard = targetHand.splice(randIdx, 1)[0];
+              
+              currentHand.push(stolenCard);
+              room.players[playerId].handCount = currentHand.length;
+              transaction.set(handRef, { cards: currentHand });
+
+              room.players[currentTargetPlayerId].handCount = targetHand.length;
+              transaction.set(targetHandRef, { cards: targetHand });
+            }
+          } else if (card.type === 'CutDown') {
+            for (const pId of gameState.turnOrder) {
+              const pVictory = gameState.victoryCards[pId] || [];
+              const idx = pVictory.findIndex(c => c.type === 'PlusFive');
+              if (idx !== -1) {
+                pVictory.splice(idx, 1);
+                gameState.victoryCards[pId] = pVictory;
+              }
+            }
+          } else if (card.type === 'Share' && currentTargetPlayerId && currentTargetPlayerId.trim() !== '') {
+            const myVictory = gameState.victoryCards[playerId] || [];
+            if (myVictory.length > 0) {
+              const scoreMap = { MinusThree: -3, PlusOne: 1, PlusThree: 3, PlusFive: 5 };
+              let lowestIdx = 0;
+              let lowestVal = 9999;
+              for (let k = 0; k < myVictory.length; k++) {
+                const val = scoreMap[myVictory[k].type as keyof typeof scoreMap] || 0;
+                if (val < lowestVal) {
+                  lowestVal = val;
+                  lowestIdx = k;
+                }
+              }
+              const sharedCard = myVictory.splice(lowestIdx, 1)[0];
+              gameState.victoryCards[playerId] = myVictory;
+
+              if (!gameState.victoryCards[currentTargetPlayerId]) {
+                gameState.victoryCards[currentTargetPlayerId] = [];
+              }
+              gameState.victoryCards[currentTargetPlayerId].push(sharedCard);
+            }
+          }
+        }
+
+        if (sabotageCards.length > 0) {
           gameState.phase = 'interrupt';
           gameState.interruptDeadline = Date.now() + room.settings.interruptTimeLimit * 1000;
-          const sabotageCard = playedCards.find(c => ['Harassment', 'Accomplice', 'Barrage', 'QuagmireDrag'].includes(c.type))!;
-          const sabotageIdx = playedCards.indexOf(sabotageCard);
-          const currentTargetPlayerId = validTargetPlayerIds[sabotageIdx] ?? targetPlayerId ?? null;
           gameState.currentAction = {
             type: 'discardPlayTwo',
-            cardId: sabotageCard.id,
-            cardType: sabotageCard.type,
             playerId,
-            targetPlayerId: currentTargetPlayerId
+            playedCards: sabotageCards,
+            targetPlayerIds: sabotageTargetPlayerIds,
+            // For backward compatibility
+            cardId: sabotageCards[0].id,
+            cardType: sabotageCards[0].type,
+            targetPlayerId: sabotageTargetPlayerIds[0]
           } as any;
           gameState.interruptStack = [];
         } else {
-          if (!gameState.victoryCards) {
-            gameState.victoryCards = {};
-          }
-          if (!gameState.victoryCards[playerId]) {
-            gameState.victoryCards[playerId] = [];
-          }
-
-          for (let i = 0; i < playedCards.length; i++) {
-            const card = playedCards[i];
-            const currentTargetPlayerId = validTargetPlayerIds[i] ?? targetPlayerId ?? null;
-
-            if (card.type === 'GainOne') {
-              gameState.victoryCards[playerId].push({ type: 'PlusOne' });
-            } else if (card.type === 'GainTwo') {
-              gameState.victoryCards[playerId].push({ type: 'PlusOne' }, { type: 'PlusOne' });
-            } else if (card.type === 'GainThree') {
-              gameState.victoryCards[playerId].push({ type: 'PlusOne' }, { type: 'PlusOne' }, { type: 'PlusOne' });
-            } else if (card.type === 'Plunder' && currentTargetPlayerId && currentTargetPlayerId.trim() !== '') {
-              const targetVictory = gameState.victoryCards[currentTargetPlayerId] || [];
-              if (targetVictory.length > 0) {
-                const plunderCount = Math.min(2, targetVictory.length);
-                for (let j = 0; j < plunderCount; j++) {
-                  const randIdx = Math.floor(Math.random() * targetVictory.length);
-                  const stolen = targetVictory.splice(randIdx, 1)[0];
-                  gameState.victoryCards[playerId].push(stolen);
-                }
-                gameState.victoryCards[currentTargetPlayerId] = targetVictory;
-              }
-            } else if (card.type === 'HandRaid' && currentTargetPlayerId && currentTargetPlayerId.trim() !== '') {
-              const targetHandRef = roomRef.collection('hands').doc(currentTargetPlayerId);
-              const targetHandDoc = await transaction.get(targetHandRef);
-              const targetHand = (targetHandDoc.exists ? targetHandDoc.data()?.cards : []) as ActionCard[];
-              if (targetHand.length > 0) {
-                const randIdx = Math.floor(Math.random() * targetHand.length);
-                const stolenCard = targetHand.splice(randIdx, 1)[0];
-                
-                currentHand.push(stolenCard);
-                room.players[playerId].handCount = currentHand.length;
-                transaction.set(handRef, { cards: currentHand });
-
-                room.players[currentTargetPlayerId].handCount = targetHand.length;
-                transaction.set(targetHandRef, { cards: targetHand });
-              }
-            } else if (card.type === 'CutDown') {
-              for (const pId of gameState.turnOrder) {
-                const pVictory = gameState.victoryCards[pId] || [];
-                const idx = pVictory.findIndex(c => c.type === 'PlusFive');
-                if (idx !== -1) {
-                  pVictory.splice(idx, 1);
-                  gameState.victoryCards[pId] = pVictory;
-                }
-              }
-            } else if (card.type === 'Share' && currentTargetPlayerId && currentTargetPlayerId.trim() !== '') {
-              const myVictory = gameState.victoryCards[playerId] || [];
-              if (myVictory.length > 0) {
-                const scoreMap = { MinusThree: -3, PlusOne: 1, PlusThree: 3, PlusFive: 5 };
-                let lowestIdx = 0;
-                let lowestVal = 9999;
-                for (let k = 0; k < myVictory.length; k++) {
-                  const val = scoreMap[myVictory[k].type as keyof typeof scoreMap] || 0;
-                  if (val < lowestVal) {
-                    lowestVal = val;
-                    lowestIdx = k;
-                  }
-                }
-                const sharedCard = myVictory.splice(lowestIdx, 1)[0];
-                gameState.victoryCards[playerId] = myVictory;
-
-                if (!gameState.victoryCards[currentTargetPlayerId]) {
-                  gameState.victoryCards[currentTargetPlayerId] = [];
-                }
-                gameState.victoryCards[currentTargetPlayerId].push(sharedCard);
-              }
-            }
-          }
-
           advanceTurn(room, gameState);
         }
       } else if (actionType === 'pass') {
@@ -472,7 +487,7 @@ router.post('/:roomId/interrupt', authenticate, async (req: AuthenticatedRequest
       gameState.interruptStack.push({
         playerId,
         playedCard: counterCard,
-        targetPlayerId
+        targetPlayerId: targetPlayerId || null
       });
 
       // Reset timer
@@ -527,13 +542,20 @@ router.post('/:roomId/interrupt-skip', authenticate, async (req: AuthenticatedRe
         (pId) => room.players[pId].status === 'playing'
       );
 
-      // Check if everyone has skipped
-      const allSkipped = playingPlayerIds.every((pId) =>
+      // Check if everyone (except the player who played the last card) has skipped
+      const interruptStackLength = gameState.interruptStack?.length || 0;
+      const lastActionPlayerId = interruptStackLength > 0
+        ? gameState.interruptStack![interruptStackLength - 1].playerId
+        : (gameState.currentAction as any)?.playerId;
+
+      const expectedSkipPlayers = playingPlayerIds.filter(pId => pId !== lastActionPlayerId);
+      
+      const allSkipped = expectedSkipPlayers.every((pId) =>
         gameState.interruptSkippedPlayers?.includes(pId)
       );
 
       if (allSkipped) {
-        resolveInterrupts(gameState);
+        resolveInterrupts(gameState, room);
         gameState.phase = 'playing';
         gameState.interruptDeadline = null;
         gameState.interruptSkippedPlayers = [];

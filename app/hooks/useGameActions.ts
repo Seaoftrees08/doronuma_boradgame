@@ -17,7 +17,16 @@ export const useGameActions = (roomId: string) => {
     };
     const response = await fetch(url, { ...options, headers });
     if (!response.ok) {
-      throw new Error(`API call failed: ${response.statusText}`);
+      let errMessage = response.statusText;
+      try {
+        const errData = await response.json();
+        if (errData && errData.error) {
+          errMessage += ` - ${errData.error}`;
+        }
+      } catch (e) {
+        // ignore JSON parse error
+      }
+      throw new Error(`API call failed: ${errMessage}`);
     }
     return response.json();
   };

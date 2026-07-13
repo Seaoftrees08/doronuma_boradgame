@@ -32,7 +32,7 @@ export const checkAndProcessExpiredDeadlines = async (roomId: string): Promise<v
     } else if (isInterruptTimeout) {
       // Process interrupt timeout (no one interrupted)
       // Resolve the original action
-      resolveInterrupts(gameState);
+      resolveInterrupts(gameState, room);
       gameState.phase = 'playing';
       gameState.interruptDeadline = null;
       advanceTurn(room, gameState);

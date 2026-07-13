@@ -64,6 +64,16 @@ export default function GameBoard() {
     return () => clearTimeout(timerId);
   }, [room?.roomId, gameState?.turnDeadline, gameState?.interruptDeadline, gameState?.phase, user]);
 
+  const interruptStackLength = gameState?.interruptStack?.length || 0;
+  useEffect(() => {
+    if (gameState?.phase !== 'interrupt') {
+      setHasInterruptedOrSkipped(false);
+    } else {
+      // Reset when a new interrupt is played by someone else (or even us, though we immediately set it to true again when we play)
+      setHasInterruptedOrSkipped(false);
+    }
+  }, [gameState?.phase, interruptStackLength]);
+
   if (roomState.loading || gameStateData.loading || !room || !gameState) {
     return <div className="flex flex-1 items-center justify-center">Loading Game...</div>;
   }
@@ -103,9 +113,14 @@ export default function GameBoard() {
   const currentPlayer = room.players[user?.uid || ""];
   const isMyTurn = gameState.currentTurnPlayerId === user?.uid;
   const canTarget = isMyTurn && selectedCardIds.length > 0;
+  
+  const lastActionPlayerId = interruptStackLength > 0 
+    ? gameState.interruptStack![interruptStackLength - 1].playerId 
+    : gameState.currentAction?.playerId;
+
   const showInterruptOverlay = 
     gameState.phase === 'interrupt' && 
-    gameState.currentAction?.playerId !== user?.uid && 
+    lastActionPlayerId !== user?.uid && 
     !hasInterruptedOrSkipped;
 
   return (
@@ -168,9 +183,11 @@ export default function GameBoard() {
 
       {/* Overlays */}
       <InterruptOverlay
-        currentCardType={gameState.currentAction
-          ? (gameState.currentAction as any).cardType || null
-          : null}
+        currentCardType={
+          interruptStackLength > 0
+            ? gameState.interruptStack![interruptStackLength - 1].playedCard.type
+            : (gameState.currentAction as any)?.cardType || null
+        }
         playerHand={hand}
         isActive={showInterruptOverlay}
         onInterrupt={handleInterrupt}

@@ -43,66 +43,87 @@ export const addInterrupt = (
   return { success: true };
 };
 
-export const resolveInterrupts = (gameState: GameState): void => {
+export const resolveInterrupts = (gameState: GameState, room?: GameRoom): void => {
   const currentAction = gameState.currentAction;
   if (!currentAction) return;
 
   const originalPlayerId = (currentAction as any).playerId;
-  let targetPlayerId = (currentAction as any).targetPlayerId;
-  const targetCardType = (currentAction as any).cardType || (currentAction as any).playedCards?.[0]?.type;
-
-  let isCanceled = false;
-  let effectMultiplier = 1;
-  let finalRecipientId = targetPlayerId;
-
-  if (gameState.interruptStack && gameState.interruptStack.length > 0) {
-    const lastInterrupt = gameState.interruptStack[gameState.interruptStack.length - 1];
-    const counterType = lastInterrupt.playedCard.type;
-
-    if (counterType === 'Nullify') {
-      isCanceled = true;
-    } else if (counterType === 'Deflect') {
-      if (lastInterrupt.targetPlayerId) {
-        finalRecipientId = lastInterrupt.targetPlayerId;
-      }
-    } else if (counterType === 'DoubleBack') {
-      finalRecipientId = originalPlayerId;
-      effectMultiplier = 2;
-    } else if (counterType === 'Repel') {
-      finalRecipientId = originalPlayerId;
+  
+  // Extract all cards to resolve
+  const cardsToResolve: { cardType: CardType; targetPlayerId: string | null }[] = [];
+  if ((currentAction as any).playedCards && (currentAction as any).playedCards.length > 0) {
+    const actionPlayedCards = (currentAction as any).playedCards as ActionCard[];
+    const targetPlayerIds = (currentAction as any).targetPlayerIds as (string | null)[];
+    for (let i = 0; i < actionPlayedCards.length; i++) {
+      cardsToResolve.push({
+        cardType: actionPlayedCards[i].type as CardType,
+        targetPlayerId: targetPlayerIds?.[i] ?? null
+      });
     }
+  } else {
+    cardsToResolve.push({
+      cardType: ((currentAction as any).cardType || (currentAction as any).playedCards?.[0]?.type) as CardType,
+      targetPlayerId: (currentAction as any).targetPlayerId ?? null
+    });
   }
 
-  if (!isCanceled && finalRecipientId) {
-    const stateAny = gameState as any;
-    const isTargetAfk = stateAny.players?.[finalRecipientId]?.status === 'afk';
-    
-    if (!isTargetAfk && targetCardType) {
-      if (!gameState.victoryCards) {
-        gameState.victoryCards = {};
-      }
+  if (!gameState.victoryCards) {
+    gameState.victoryCards = {};
+  }
 
-      if (targetCardType === 'Harassment') {
-        const total = 1 * effectMultiplier;
-        if (!gameState.victoryCards[finalRecipientId]) {
-          gameState.victoryCards[finalRecipientId] = [];
+  for (const { cardType, targetPlayerId } of cardsToResolve) {
+    if (!cardType) continue;
+
+    let isCanceled = false;
+    let effectMultiplier = 1;
+    let finalRecipientId = targetPlayerId;
+
+    if (gameState.interruptStack && gameState.interruptStack.length > 0) {
+      const lastInterrupt = gameState.interruptStack[gameState.interruptStack.length - 1];
+      const counterType = lastInterrupt.playedCard.type;
+
+      if (counterType === 'Nullify') {
+        isCanceled = true;
+      } else if (counterType === 'Deflect') {
+        if (lastInterrupt.targetPlayerId) {
+          finalRecipientId = lastInterrupt.targetPlayerId;
         }
-        for (let i = 0; i < total; i++) {
-          gameState.victoryCards[finalRecipientId].push({ type: 'MinusThree' });
+      } else if (counterType === 'DoubleBack') {
+        finalRecipientId = originalPlayerId;
+        effectMultiplier = 2;
+      } else if (counterType === 'Repel') {
+        finalRecipientId = originalPlayerId;
+      }
+    }
+
+    if (!isCanceled) {
+      if (cardType === 'Harassment' && finalRecipientId) {
+        const isTargetAfk = room?.players?.[finalRecipientId]?.status === 'afk';
+        if (!isTargetAfk) {
+          const total = 1 * effectMultiplier;
+          if (!gameState.victoryCards[finalRecipientId]) {
+            gameState.victoryCards[finalRecipientId] = [];
+          }
+          for (let i = 0; i < total; i++) {
+            gameState.victoryCards[finalRecipientId].push({ type: 'MinusThree' });
+          }
         }
-      } else if (targetCardType === 'Barrage') {
-        const total = 2 * effectMultiplier;
-        if (!gameState.victoryCards[finalRecipientId]) {
-          gameState.victoryCards[finalRecipientId] = [];
+      } else if (cardType === 'Barrage' && finalRecipientId) {
+        const isTargetAfk = room?.players?.[finalRecipientId]?.status === 'afk';
+        if (!isTargetAfk) {
+          const total = 2 * effectMultiplier;
+          if (!gameState.victoryCards[finalRecipientId]) {
+            gameState.victoryCards[finalRecipientId] = [];
+          }
+          for (let i = 0; i < total; i++) {
+            gameState.victoryCards[finalRecipientId].push({ type: 'MinusThree' });
+          }
         }
-        for (let i = 0; i < total; i++) {
-          gameState.victoryCards[finalRecipientId].push({ type: 'MinusThree' });
-        }
-      } else if (targetCardType === 'Accomplice') {
+      } else if (cardType === 'Accomplice') {
         for (const pId of gameState.turnOrder) {
           if (pId !== originalPlayerId) {
             const recipient = counterCardTargetCheck(pId, originalPlayerId, gameState.interruptStack);
-            if (recipient && stateAny.players?.[recipient]?.status !== 'afk') {
+            if (recipient && room?.players?.[recipient]?.status !== 'afk') {
               if (!gameState.victoryCards[recipient]) {
                 gameState.victoryCards[recipient] = [];
               }
@@ -110,19 +131,22 @@ export const resolveInterrupts = (gameState: GameState): void => {
             }
           }
         }
-      } else if (targetCardType === 'QuagmireDrag') {
-        if (stateAny.players?.[finalRecipientId]?.status !== 'afk') {
-          if (!gameState.victoryCards[finalRecipientId]) {
-            gameState.victoryCards[finalRecipientId] = [];
-          }
-          for (let i = 0; i < effectMultiplier; i++) {
-            gameState.victoryCards[finalRecipientId].push({ type: 'MinusThree' });
+      } else if (cardType === 'QuagmireDrag') {
+        if (finalRecipientId) {
+          const isTargetAfk = room?.players?.[finalRecipientId]?.status === 'afk';
+          if (!isTargetAfk) {
+            if (!gameState.victoryCards[finalRecipientId]) {
+              gameState.victoryCards[finalRecipientId] = [];
+            }
+            for (let i = 0; i < effectMultiplier; i++) {
+              gameState.victoryCards[finalRecipientId].push({ type: 'MinusThree' });
+            }
           }
         }
 
         for (const pId of gameState.turnOrder) {
           if (pId !== originalPlayerId) {
-            if (stateAny.players?.[pId]?.status !== 'afk') {
+            if (room?.players?.[pId]?.status !== 'afk') {
               if (!gameState.victoryCards[pId]) {
                 gameState.victoryCards[pId] = [];
               }
